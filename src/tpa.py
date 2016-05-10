@@ -132,15 +132,6 @@ def main(argv):
             if call(['python', uploader_path, destination, config_base_dir, os.path.join(config_dir, config_path), log_dir],  stdout=log, stderr=err) == 0:
                 success += 1
 
-        #
-        # TEMP --- for test
-        print("--- LOG START ---")
-        call(['cat', log_path])
-        print("--- LOG END ---")
-        print("--- ERR START ---")
-        call(['cat', err_path])
-        print("--- ERR END ---")
-
     total = len(config_paths)
     sys.stdout.write("Total: '{}' Success: '{}' Failure: '{}'.\n".format(total, success, total - success))
     if total == success:
