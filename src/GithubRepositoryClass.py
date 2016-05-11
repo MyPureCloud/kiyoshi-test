@@ -3,7 +3,6 @@ from requests.exceptions import ConnectionError
 from collections import OrderedDict
 from GithubCredsConfigurationClass import GithubCredsConfiguration
 from GitRepositoryClass import GitRepository, GitFileImport
-#from ResourceRepositoryClass import PullRequest
 
 class GithubRepository(GitRepository):
     def __init__(self, repository_url, repository_owner, repository_name, branch_name):
@@ -29,7 +28,7 @@ class GithubRepository(GitRepository):
         return super(GithubRepository, self).get_local_resource_path(resource_path)
 
     def _github_creds_set(self):
-        return super(GitRepsitory, self).get_creds_set()
+        return super(GithubRepository, self).git_creds_set()
 
     def _set_github_creds(self):
         if not os.path.isfile(self._GITHUB_CREDS_FILE):
@@ -100,7 +99,7 @@ class GithubRepository(GitRepository):
            'head': pullrequest.branch_name,
            'base': self._repository_branch_name}, ensure_ascii=False)
         try:
-            r =  requests.post(url, auth=(self._github_username, self._github_userpasswd), data=payload)
+            r =  requests.post(url, auth=(self._git_username, self._git_userpasswd), data=payload)
         except ConnectionError as e:
             pullrequest.errors += 1
             pullrequest.submitted = False
@@ -196,7 +195,7 @@ class GithubRepository(GitRepository):
            'head': feature_branch_name,
            'base': self._repository_branch_name}, ensure_ascii=False)
         try:
-            r =  requests.post(url, auth=(self._github_username, self._github_userpasswd), data=payload)
+            r =  requests.post(url, auth=(self._git_username, self._git_userpasswd), data=payload)
         except ConnectionError as e:
             github_pullrequest_obj.errors += 1
             github_pullrequest_obj.submitted = False
@@ -255,7 +254,7 @@ class GithubRepository(GitRepository):
         url = 'https://api.github.com/repos/' + self._repository_owner + '/' + self._repository_name + '/issues/' + str(issue_number)
         payload = json.dumps({'assignee': assignee}, ensure_ascii=False)
         try:
-            r =  requests.patch(url, auth=(self._github_username, self._github_userpasswd), data=payload)
+            r =  requests.patch(url, auth=(self._git_username, self._git_userpasswd), data=payload)
         except ConnectionError as e:
             sys.stderr.write("Failed to update assignee ({}). Reason: {}\n".format(assignee, e))
             return False

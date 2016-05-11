@@ -53,7 +53,7 @@ class GitRepository(object):
     def git_creds_set(self):
         return self._git_creds_set
 
-    def set_git_creds(self, user_name, user_passwd, uesr_email, user_fullname):
+    def set_git_creds(self, user_name, user_passwd, user_email, user_fullname):
         self._git_username = user_name
         self._git_userpasswd = user_passwd
         self._git_useremail = user_email
@@ -181,13 +181,13 @@ class GitRepository(object):
             return True
 
     def _commit(self):
-        if not (self._github_username and self._github_userpasswd):
-            if not self._set_github_creds():
+        if not (self._git_username and self._git_userpasswd):
+            if not self.set_git_creds():
                 return False
  
         try:
-            git('-C', self._repository_name, 'config', 'user.name', self._github_user_fullname)
-            git('-C', self._repository_name, 'config', 'user.email', self._github_useremail)
+            git('-C', self._repository_name, 'config', 'user.name', self._git_user_fullname)
+            git('-C', self._repository_name, 'config', 'user.email', self._git_useremail)
         except ErrorReturnCode as e:
             self._errors += 1
             sys.stderr.write("Failed to set git username or useremail. Reason: {}\n".format(str(e)))
@@ -286,8 +286,8 @@ class GitRepository(object):
             return True
 
     def push_branch(self, branch_name):
-        if not (self._github_username and self._github_userpasswd):
-            if not self._set_github_creds():
+        if not (self._git_username and self._git_userpasswd):
+            if not self.set_git_creds():
                 sys.stderr.write("Failed to push feature branch b/c setting github creds failed.\n")
                 return False
 
