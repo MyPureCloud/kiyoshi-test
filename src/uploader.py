@@ -52,6 +52,63 @@ def _create_translation_repository(config_file_path, log_dir):
 
 def display_python_version():
     sys.stdout.write("'{}'.\n".format(sys.version_info))
+    
+def _upload_resource(translation_repository, resource_bundle, log_dir):
+    success = True
+    trans_bundles = []
+    for resource in resource_bundle:
+        sys.stdout.write("Processing resource '{}'...\n".format(resource.resource_path))
+
+        if not resource.available():
+            sys.stdout.write("(Resource not available in local.)\n")
+            continue
+
+        if translation_repository.import_resource(resource):
+            sys.stdout.write("Uploaded.\n")
+        else:
+            sys.stdout.write("Failed uploading.\n")
+            success = False
+
+    return success
+
+def _upload_translation(resource_repository, resource_bundle, translation_repository, log_dir):
+    success = True
+    trans_bundles = []
+    for resource in resource_bundle:
+        sys.stdout.write("Preparing translation candidates for resource: '{}'...\n".format(resource.resource_path))
+
+        if not resource.available():
+            sys.stdout.write("Skipped. Resource not available in local.\n")
+            continue
+
+        trans_bundle = translation_repository.get_translation_bundle(resource)
+        if trans_bundle:
+            trans_bundles.append(trans_bundle)
+        else:
+            sys.stdout.write("Skipped. No translation bundle for this resource.\n")
+
+    feature_branch_name = resource_repository.import_bundles(trans_bundles)
+    if feature_branch_name:
+        sys.stdout.write("Imports in branch: '{}'.\n".format(feature_branch_name))
+        pr = PullRequest()
+        pr.branch_name = feature_branch_name
+        pr.reviewers = list(set(translation_repository.get_reviewers() + resource_repository.get_reviewers()))
+        resource_repository.submit_pullrequest(pr)
+        if pr.submitted:
+            if not pr.number:
+                sys.stdout.write("Submitted pull request.\n")
+            else:
+                sys.stdout.write("Submitted pull request #{}.\n".format(pr.number))
+        else:
+            if pr.errors == 0:
+                sys.stdout.write("{}\n".format(pr.message))
+            else:
+                success = False
+                sys.stderr.write("{}\n".format(pr.message))
+    else:
+        sys.stdout.write("(No pull request submitted.)\n")
+
+    return success
 
 def main(argv):
     upload_destination_string = argv[0]
@@ -59,175 +116,36 @@ def main(argv):
     config_file_path =  argv[2]
     log_dir = argv[3]
 
-    if upload_destination_string == 'translation_repository':
-        _upload_resource(config_dir, config_file_path, log_dir)
-    elif upload_destination_string == 'resource_repository':
-        _upload_translation(config_dir, config_file_path, log_dir)
-    else:
-        sys.stderr.write("BUG: Unknown upload destination string '{}'\n".format(upload_destination_string))
-    
-def _upload_resource(config_dir, config_file_path, log_dir):
-    success = False
     display_python_version()
     sys.stdout.write("Start processing: '{}'...\n".format(config_file_path))
+
     resource_repo = _create_resource_repository(config_file_path, log_dir)
-    resource_bundle = resource_repo.get_resource_bundle()
-    num_resources = len(resource_bundle)
-    sys.stdout.write("Number of resources: '{}'.\n".format(num_resources))
-    trans_config_path = _find_translation_config_file(resource_repo.get_repository_name(), config_dir)
-    trans_repo = _create_translation_repository(trans_config_path, log_dir)
-
-    success = True
-    trans_bundles = []
-    for resource in resource_bundle:
-        sys.stdout.write("Processing resource '{}'...\n".format(resource.resource_path))
-
-        if not resource.available():
-            sys.stdout.write("(Resource not available in local.)\n")
-            continue
-
-        if trans_repo.import_resource(resource):
-            sys.stdout.write("Uploaded.\n")
-        else:
-            sys.stdout.write("Failed uploading.\n")
-            success = False
-
-    sys.stdout.write("End processing: '{}'.\n".format(config_file_path))
-    sys.stdout.flush()
-    sys.stderr.flush()
-
-    if success:
-        sys.exit(0)
-    else:
+    if not resource_repo:
+        sys.stdout.write("End processing: '{}'.\n".format(config_file_path))
         sys.exit(1)
 
-def _upload_translation(config_dir, config_file_path, log_dir):
-    success = False
-    display_python_version()
-    sys.stdout.write("Start processing: '{}'...\n".format(config_file_path))
-    resource_repo = _create_resource_repository(config_file_path, log_dir)
     resource_bundle = resource_repo.get_resource_bundle()
     num_resources = len(resource_bundle)
     sys.stdout.write("Number of resources: '{}'.\n".format(num_resources))
-    trans_config_path = _find_translation_config_file(resource_repo.get_repository_name(), config_dir)
-    trans_repo = _create_translation_repository(trans_config_path, log_dir)
-
-    success = True
-    trans_bundles = []
-    for resource in resource_bundle:
-        sys.stdout.write("Processing resource '{}'...\n".format(resource.resource_path))
-
-        if not resource.available():
-            sys.stdout.write("(Resource not available in local.)\n")
-            continue
-
-        trans_bundle = trans_repo.get_translation_bundle(resource)
-        if trans_bundle:
-            trans_bundles.append(trans_bundle)
-        else:
-            sys.stdout.write("(No translation bundle for this resource.)\n")
-
-    total_imports = resource_repo.add_import_entry(trans_bundles)
-    sys.stdout.write("Number of import candidates: '{}'.\n".format(total_imports))
-        
-    if total_imports >= 1:
-        feature_branch_name = resource_repo.import_bundles(trans_bundles)
-        if feature_branch_name:
-            pr = PullRequest()
-            pr.branch_name = feature_branch_name
-            pr.reviewers = list(set(trans_repo.get_reviewers() + resource_repo.get_reviewers()))
-            resource_repo.submit_pullrequest(pr)
-            if pr.submitted:
-                if not pr.number:
-                    sys.stdout.write("Submitted pull request.\n")
-                else:
-                    sys.stdout.write("Submitted pull request #{}.\n".format(pr.number))
-            else:
-                if pr.errors == 0:
-                    sys.stdout.write("{}\n".format(pr.message))
-                else:
-                    success = False
-                    sys.stderr.write("{}\n".format(pr.message))
-        else:
-            sys.stdout.write("(No pull request submitted.\n")
-
-    sys.stdout.write("End processing: '{}'.\n".format(config_file_path))
-    sys.stdout.flush()
-    sys.stderr.flush()
-
-    if success:
+    if num_resources == 0:
+        sys.stdout.write("End processing: '{}'.\n".format(config_file_path))
         sys.exit(0)
-    else:
+
+    trans_config_path = _find_translation_config_file(resource_repo.get_repository_name(), config_dir)
+    if not trans_config_path:
+        sys.stdout.write("End processing: '{}'.\n".format(config_file_path))
         sys.exit(1)
 
-def mainORIG(argv):
-    upload_destination_string = argv[0]
-    config_dir = argv[1]
-    config_file_path =  argv[2]
-    log_dir = argv[3]
+    trans_repo = _create_translation_repository(trans_config_path, log_dir)
+    if not trans_repo:
+        sys.stdout.write("End processing: '{}'.\n".format(config_file_path))
+        sys.exit(1)
 
     success = False
-    display_python_version()
-    sys.stdout.write("Start processing: '{}'...\n".format(config_file_path))
-    resource_repo = _create_resource_repository(config_file_path, log_dir)
-    resource_bundle = resource_repo.get_resource_bundle()
-    num_resources = len(resource_bundle)
-    sys.stdout.write("Number of resources: '{}'.\n".format(num_resources))
-    trans_config_path = _find_translation_config_file(resource_repo.get_repository_name(), config_dir)
-    trans_repo = _create_translation_repository(trans_config_path, log_dir)
-
-    success = True
-    trans_bundles = []
-    for resource in resource_bundle:
-        sys.stdout.write("Processing resource '{}'...\n".format(resource.resource_path))
-
-        if not resource.available():
-            sys.stdout.write("(Resource not available in local.)\n")
-            continue
-
-        if upload_destination_string == 'translation_repository':
-            if trans_repo.import_resource(resource):
-                sys.stdout.write("Uploaded.\n")
-            else:
-                sys.stdout.write("Failed uploading.\n")
-                success = False
-        elif upload_destination_string == 'resource_repository':
-            trans_bundle = trans_repo.get_translation_bundle(resource)
-            if trans_bundle:
-                trans_bundles.append(trans_bundle)
-            else:
-                sys.stdout.write("(No translation bundle for this resource.)\n")
-        else:
-            sys.stderr.write("BUG: Unknown upload destination string '{}'\n".format(upload_destination_string))
-
     if upload_destination_string == 'translation_repository':
-        pass 
+        success = _upload_resource(trans_repo, resource_bundle, log_dir)
     elif upload_destination_string == 'resource_repository':
-        total_imports = resource_repo.add_import_entry(trans_bundles)
-        sys.stdout.write("Number of import candidates: '{}'.\n".format(total_imports))
-        
-        if total_imports >= 1:
-            feature_branch_name = resource_repo.import_bundles(trans_bundles)
-            if feature_branch_name:
-                pr = PullRequest()
-                pr.branch_name = feature_branch_name
-                pr.reviewers = list(set(trans_repo.get_reviewers() + resource_repo.get_reviewers()))
-                resource_repo.submit_pullrequest(pr)
-                if pr.submitted:
-                    if not pr.number:
-                        sys.stdout.write("Submitted pull request.\n")
-                    else:
-                        sys.stdout.write("Submitted pull request #{}.\n".format(pr.number))
-                else:
-                    if pr.errors == 0:
-                        sys.stdout.write("{}\n".format(pr.message))
-                    else:
-                        success = False
-                        sys.stderr.write("{}\n".format(pr.message))
-            else:
-                sys.stdout.write("(No pull request submitted.\n")
-        else:
-            sys.stdout.write("(No pull request submitted.\n")
+        success = _upload_translation(resource_repo, resource_bundle, trans_repo, log_dir)
     else:
         sys.stderr.write("BUG: Unknown upload destination string '{}'\n".format(upload_destination_string))
 

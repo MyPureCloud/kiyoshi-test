@@ -1,7 +1,7 @@
 import sys, os, re, requests, json
 from requests.exceptions import ConnectionError
 from collections import OrderedDict
-from GithubCredsConfigurationClass import GithubCredsConfiguration
+from GitCredsConfigurationClass import GitCredsConfiguration
 from GitRepositoryClass import GitRepository, GitFileImport
 
 class GithubRepository(GitRepository):
@@ -35,7 +35,7 @@ class GithubRepository(GitRepository):
             sys.stderr.write("Github creds config file NOT found: {}.\n".format(self._GITHUB_CREDS_FILE))
             return False
 
-        t = GithubCredsConfiguration()
+        t = GitCredsConfiguration()
         if not t.parse(self._GITHUB_CREDS_FILE):
             sys.stderr.write("Failed to parse Github creds config file: {}\n".format(self._GITHUB_CREDS_FILE))
             return False
@@ -50,11 +50,15 @@ class GithubRepository(GitRepository):
         return super(GithubRepository, self).clone()
 
     def import_translation(self, list_translation_import):
+        if not self._github_creds_set():
+            if not self._set_github_creds():
+                sys.stderr.write("Failed to set git creds. Nothing was imported.")
+                return None
         return super(GithubRepository, self).import_translation(list_translation_import)
 
     def _set_remote_url(self):
-        user_name = super(GithubRepository, self).get_uesr_name()
-        user_passwd = super(GithubRepository, self).get_uesr_passwd()
+        user_name = super(GithubRepository, self).get_user_name()
+        user_passwd = super(GithubRepository, self).get_user_passwd()
         repository_owner = super(GithubRepository, self).get_repository_owner()
         repository_name = super(GithubRepository, self).get_repository_name()
         url = "https://{}:{}@github.com/{}/{}.git".format(user_name, user_passwd, repository_owner, repository_name)
@@ -297,7 +301,7 @@ class GithubRepository(GitRepository):
         else:
             sys.stdout.write("# of translation files in opened PRs: {}.\n".format(len(undo)))
             for ent in undo:
-                sys.stdout.write("- {}\n".format(ent))
+                sys.stdout.write("Open: {}\n".format(ent))
 
         return super(GithubRepository, self).revert_translation(branch_name, undo)
 

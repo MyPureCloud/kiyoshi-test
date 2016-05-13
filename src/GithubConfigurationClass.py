@@ -17,8 +17,9 @@ class GithubPullRequest:
             elif k0 == "assignee":
                 self.assignee = v0
             elif k0 == "reviewers":
-                for i in v0:
-                    self.reviewer_entry.append(i)
+                if v0:
+                    for i in v0:
+                        self.reviewer_entry.append(i)
             else:
                 self._errors += 1
                 sys.stderr.write("Unknown key: {} under pullrequest.\n".format(k0))

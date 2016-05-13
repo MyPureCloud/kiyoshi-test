@@ -3,12 +3,6 @@ from requests.exceptions import ConnectionError
 from hashlib import sha1
 from TransifexCredsConfigurationClass import TransifexCredsConfiguration
 
-class TransifexResourceImport:
-    def __init__(self, resource_repository_name=str(), resource_path=str(), import_file_path=str()):
-        self.repository_name = resource_repository_name
-        self.resource_path = resource_path
-        self.import_path = import_file_path
-
 class TransifexTranslationDownload:
     def __init__(self):
         self.path = str()

@@ -3,6 +3,7 @@ from shutil import copyfile
 from ResourceConfigurationClass import ResourceConfiguration
 from GitRepositoryClass import GitFileImport
 from GithubRepositoryClass import GithubRepository
+from BitbucketRepositoryClass import BitbucketRepository
 from ResourceValidatorClass import ResourceValidator
 from TranslationRepositoryClass import TranslationBundle, Translation
 
@@ -96,8 +97,6 @@ class ResourceRepository:
         self._log_dir = log_dir
         self._config = None
         self._local_repo_dir = str()
-        self._batch_import_translations_starting_number = -1 
-        self._batch_import_translations_ending_number = -1
         self._import_entries = []
         self._errors = 0
 
@@ -113,6 +112,13 @@ class ResourceRepository:
         platform_name = self._config.get_repository_platform().lower()
         if platform_name == 'github': 
             return GithubRepository(
+                    self._config.get_repository_url(),
+                    self._config.get_repository_owner(),
+                    self._config.get_repository_name(),
+                    self._config.get_repository_branch()
+                    )
+        elif platform_name == 'bitbucket': 
+            return BitbucketRepository(
                     self._config.get_repository_url(),
                     self._config.get_repository_owner(),
                     self._config.get_repository_name(),
@@ -145,10 +151,11 @@ class ResourceRepository:
         return r
 
 
-    def add_import_entry(self, translation_bundles):
+    def _add_import_entry(self, translation_bundles):
         if len(translation_bundles) == 0: 
             return
         for bundle in translation_bundles:
+            sys.stdout.write("Handling bundle...\n")
             for translation in bundle:
                 # ensure both translation path and local path are required in order to perfom importing a translation.
                 #
@@ -163,23 +170,27 @@ class ResourceRepository:
                 else:
                     # TODO --- diplaying download status might be more informative.
                     sys.stdout.write("-'{}': Local path: '{}' ('{}').\n".format(translation.language_code, translation.local_path, translation.resource_translation_path))
+
     def import_bundles(self, translation_bundles):
         self._add_import_entry(translation_bundles)
         if len(self._import_entries) == 0:
             sys.stderr.write("Nothing to import (_import_entries is empty).")
             return
-        return repo.import_translation(self._import_entries)
+        return self._repo.import_translation(self._import_entries)
 
     def submit_pullrequest(self, pullrequest):
+        pullrequest.title = self._config.get_pullrequest_title()
+        pullrequest.description = self._config.get_pullrequest_description()
+
+        platform_name = self._config.get_repository_platform().lower()
         if platform_name == 'github': 
-            pullrequest.title = self._config.get_pullrequest_title()
-            pullrequest.description = self._config.get_pullrequest_description()
-            # igonre reviewrs since github does not have such feature
             pullrequest.assignee = self._config.get_pullrequest_assignee()
+        elif platform_name == 'bitbucket':
+            pass
         else:
             pullrequest.submitted = False
             sys.stderr.write("BUG: Unknown repository platform name: '{}'.\n".format(platform_name))
             return
 
-        repo.submit_pullrequest(pullrequest)
+        self._repo.submit_pullrequest(pullrequest)
         
