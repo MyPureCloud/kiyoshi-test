@@ -15,13 +15,18 @@ class GitRepository(object):
         self._repository_name = repository_name
         self._repository_branch_name = branch_name
         self._local_repo_dir = os.path.join('./', self._repository_name)
-        self._GITHUB_CREDS_FILE = 'github_creds.yaml'
         self._git_username = str()
         self._git_userpasswd = str()
         self._git_useremail = str()
         self._git_user_fullname = str()
         self._git_creds_set = False
         self._errors = 0
+
+    def get_user_name(self):
+        return self._git_username
+
+    def get_user_passwd(self):
+        return self._git_userpasswd
 
     def get_repository_name(self):
         return self._repository_name
@@ -108,6 +113,28 @@ class GitRepository(object):
         else:
             return self._clone()
 
+    def _update_translation(self, translation_import_obj):
+        orig_path = os.path.join(self._repository_name, translation_import_obj.repo_file_path)
+        if not os.path.isfile(orig_path):
+            self._errors += 1
+            sys.stderr.write("Expected translation file does not exist in local repository: {}\n".format(orig_path))
+            return False
+
+        new_path = translation_import_obj.import_path
+        if not os.path.isfile(new_path):
+            self._errors += 1
+            sys.stderr.write("Updated traslation NOT found: {}\n".format(new_path))
+            return False
+
+        if filecmp.cmp(orig_path, new_path):
+            sys.stdout.write("Translation file does not contain any changes.\n")
+            return False
+
+        self._display_diff(orig_path, new_path)
+        copyfile(new_path, orig_path)
+        sys.stdout.write("Updated translation in local repository.\n")
+        return True
+
     def import_translation(self, list_translation_import):
         """ Returns feature branch name in local repository when importing files in 
             the given 'list_translation_import' makes any updates to the repository,
@@ -122,11 +149,11 @@ class GitRepository(object):
         for t in list_translation_import:
             sys.stdout.write("Importing {}...\n".format(t.import_path))
             if not self._is_translation_clean(t):
-                sys.stderr.write("Skipped. The file is dirty.\n") 
+                sys.stderr.write("Skipped. File is dirty: '{}'.\n".format(t.repo_file_path)) 
                 continue
             if not self._update_translation(t):
                 continue
-            self._stage_translation(t.translation_path, staged)
+            self._stage_translation(t.repo_file_path, staged)
 
         if len(staged) == 0:
             self._checkout_work_branch()
@@ -182,8 +209,8 @@ class GitRepository(object):
 
     def _commit(self):
         if not (self._git_username and self._git_userpasswd):
-            if not self.set_git_creds():
-                return False
+            sys.stderr.write("BUG: git username and userpasswd need to be set before calling GitRepository._commit().\n")
+            return False
  
         try:
             git('-C', self._repository_name, 'config', 'user.name', self._git_user_fullname)
@@ -264,7 +291,7 @@ class GitRepository(object):
         else:
             found = False
             for line in output:
-                if translation_import_obj.translation_path in line.strip().rstrip():
+                if translation_import_obj.repo_file_path in line.strip().rstrip():
                     self._errors += 1
                     sys.stderr.write("{}\n".format(line.strip().rstrip()))
                     found = True
@@ -287,9 +314,8 @@ class GitRepository(object):
 
     def push_branch(self, branch_name):
         if not (self._git_username and self._git_userpasswd):
-            if not self.set_git_creds():
-                sys.stderr.write("Failed to push feature branch b/c setting github creds failed.\n")
-                return False
+            sys.stderr.write("BUG: git username and userpasswd need to be set before calling GitRepository.push_branch().\n")
+            return False
 
         if not self._set_remote_url():
             sys.stderr.write("Failed to push feature branch b/c setting remote url failed.\n")
@@ -329,7 +355,7 @@ class GitRepository(object):
 
         return True
 
-    def display_diff(self, file1, file2):
+    def _display_diff(self, file1, file2):
         with open(file1, 'r') as fi1, open(file2, 'r') as fi2:
             diff = difflib.unified_diff(fi1.readlines(), fi2.readlines())
             sys.stdout.write("-------- starting diff --------\n")

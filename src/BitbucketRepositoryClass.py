@@ -1,7 +1,7 @@
 import sys, os, re, requests, json
 from requests.exceptions import ConnectionError
 from collections import OrderedDict
-from GithubCredsConfigurationClass import GithubCredsConfiguration
+from GitCredsConfigurationClass import GitCredsConfiguration
 from GitRepositoryClass import GitRepository, GitFileImport
 
 class BitbucketRepository(GitRepository):
@@ -27,15 +27,15 @@ class BitbucketRepository(GitRepository):
     def get_local_resource_path(self, resource_path):
         return super(BitbucketRepository, self).get_local_resource_path(resource_path)
 
-    def _github_creds_set(self):
+    def _bitbucket_creds_set(self):
         return super(BitbucketRepository, self).git_creds_set()
 
-    def _set_bitbuckedt_creds(self):
+    def _set_bitbucket_creds(self):
         if not os.path.isfile(self._BITBUCKET_CREDS_FILE):
             sys.stderr.write("Bitbucket creds config file NOT found: {}.\n".format(self._BITBUCKET_CREDS_FILE))
             return False
 
-        t = GithubCredsConfiguration()
+        t = GitCredsConfiguration()
         if not t.parse(self._BITBUCKET_CREDS_FILE):
             sys.stderr.write("Failed to parse Github creds config file: {}\n".format(self._BITBUCKET_CREDS_FILE))
             return False
@@ -50,11 +50,15 @@ class BitbucketRepository(GitRepository):
         return super(BitbucketRepository, self).clone()
 
     def import_translation(self, list_translation_import):
+        if not self._bitbucket_creds_set():
+            if not self._set_bitbucket_creds():
+                sys.stderr.write("Failed to set git creds. Nothing was imported.")
+                return None
         return super(BitbucketRepository, self).import_translation(list_translation_import)
 
     def _set_remote_url(self):
-        user_name = super(BitbucketRepository, self).get_uesr_name()
-        user_passwd = super(BitbucketRepository, self).get_uesr_passwd()
+        user_name = super(BitbucketRepository, self).get_user_name()
+        user_passwd = super(BitbucketRepository, self).get_user_passwd()
         repository_owner = super(BitbucketRepository, self).get_repository_owner()
         repository_name = super(BitbucketRepository, self).get_repository_name()
         url = "https://{}:{}@bitbucket.org/{}/{}.git".format(user_name, user_passwd, repository_owner, repository_name)
@@ -74,9 +78,8 @@ class BitbucketRepository(GitRepository):
             pullrequest.message = "No staged files. PR NOT submitted."
             return
         else:
-            sys.stdout.write("Updated files...\n")
             for ent in list_commited_files:
-                sys.stdout.write("- '{}'\n".format(ent))
+                sys.stdout.write("Committed: '{}'\n".format(ent))
 
         if not super(BitbucketRepository, self).push_branch(pullrequest.branch_name):
             pullrequest.errors += 1
@@ -84,31 +87,39 @@ class BitbucketRepository(GitRepository):
             pullrequest.message = "Failed to push feature branch. PR NOT submitted."
             return
 
-        if not self._github_creds_set():
-            if not self._set_github_creds():
+        if not self._bitbucket_creds_set():
+            if not self._set_bitbucket_creds():
                 pullrequest.errors += 1
                 pullrequest.submitted = False
-                pullrequest.message = "Failed read Github creds file. PR NOT submitted."
+                pullrequest.message = "Failed to read bitbucket creds file. PR NOT submitted."
                 return
 
         pullrequest_description = self._generate_pullrequest_description(pullrequest.description, list_commited_files)
         url = 'https://bitbucket.org/api/2.0/repositories/' + self._repository_owner + '/' + self._repository_name + '/pullrequests'
-        reviewers = ",".join(['{{"username": "{}"}}'.format(s) for s in pullrequest.reviewers]) 
+        reviewers = []
+        for s in pullrequest.reviewers:
+            reviewers.append({'username': s})
         payload = json.dumps({
-            'title': pullrequest.title,
-            'description': pullrequest.description,
             'source': {
-                {'branch': pullrequest.branch_name},
-                {'repository': self._repository_owner + '/' + self._repository_name}
+                'branch': {
+                    'name': pullrequest.branch_name
+                },
+                'repository': {
+                    'full_name': self._repository_owner + '/' + self._repository_name
+                }
             },
             'destination': {
-                {'branch': self._repository_branch_name}
+                'branch': {
+                    'name': self._repository_branch_name
+                }
             },
-            'reviewers': [reviewrs],
-            'close_source_branch': true}, ensure_ascii=False)
-
+            'title': pullrequest.title,
+            'description': pullrequest_description,
+            'reviewers': reviewers,
+            'close_source_branch': 'true'}, ensure_ascii=False)
+        headers = {'Content-Type': 'application/json'}
         try:
-            r =  requests.post(url, auth=(self._git_username, self._git_userpasswd), data=payload)
+            r =  requests.post(url, auth=(self._git_username, self._git_userpasswd), headers=headers, data=payload)
         except ConnectionError as e:
             pullrequest.errors += 1
             pullrequest.submitted = False
@@ -185,7 +196,7 @@ class BitbucketRepository(GitRepository):
         else:
             sys.stdout.write("# of translation files in opened PRs: {}.\n".format(len(undo)))
             for ent in undo:
-                sys.stdout.write("- {}\n".format(ent))
+                sys.stdout.write("Open: {}\n".format(ent))
 
         return super(BitbucketRepository, self).revert_translation(branch_name, undo)
 
@@ -203,8 +214,8 @@ class BitbucketRepository(GitRepository):
                 return r.text
 
     def _get_open_pullrequest_description(self, descriptions):
-        if not self._github_creds_set():
-            if not self._set_github_creds():
+        if not self._bitbucket_creds_set():
+            if not self._set_bitbucket_creds():
                 return None
 
         success = True

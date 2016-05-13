@@ -1,6 +1,6 @@
 import sys, yaml
 
-class GithubCredsConfiguration:
+class GitCredsConfiguration:
     def __init__(self):
         self._user_name = str()
         self._user_passwd = str()
