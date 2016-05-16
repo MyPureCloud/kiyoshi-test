@@ -1,11 +1,9 @@
-import sys, os
+import sys, os, abc
 from shutil import copyfile
 from ResourceConfigurationClass import ResourceConfiguration
-from GitRepositoryClass import GitFileImport
-from GithubRepositoryClass import GithubRepository
-from BitbucketRepositoryClass import BitbucketRepository
 from ResourceValidatorClass import ResourceValidator
 from TranslationRepositoryClass import TranslationBundle, Translation
+from GitRepositoryClass import GitFileImport
 
 class ResourceRepositoryInitializationError(Exception):
     def __init__(self, message):
@@ -91,67 +89,32 @@ class ResourceBundle:
 
         return upload_file_path
 
-class ResourceRepository:
-    def __init__(self, config_path, log_dir):
-        self._config_path = config_path
+class ResourceRepository(object):
+    __metaclass__ = abc.ABCMeta
+    def __init__(self, config, log_dir):
+        self.config = config
         self._log_dir = log_dir
-        self._config = None
         self._local_repo_dir = str()
         self._import_entries = []
-        self._errors = 0
 
-        self._load_config()
-        self._repo = self._get_platform_repository()
-
-    def _load_config(self):
-        self._config = ResourceConfiguration()
-        if not self._config.parse(self._config_path):
-            raise ResourceRepositoryInitializationError("Failed to parse config: '{}'.".format(self._config_path))
-
-    def _get_platform_repository(self):
-        platform_name = self._config.get_repository_platform().lower()
-        if platform_name == 'github': 
-            return GithubRepository(
-                    self._config.get_repository_url(),
-                    self._config.get_repository_owner(),
-                    self._config.get_repository_name(),
-                    self._config.get_repository_branch()
-                    )
-        elif platform_name == 'bitbucket': 
-            return BitbucketRepository(
-                    self._config.get_repository_url(),
-                    self._config.get_repository_owner(),
-                    self._config.get_repository_name(),
-                    self._config.get_repository_branch()
-                    )
-        else:
-            self._repo = None
-            raise ResourceRepositoryInitializationError("BUG: Unknown repository platform: '{}'.\n".format(platform_name))
-
-    def get_repository_name(self):
-        return self._config.get_repository_name()
-
-    def get_reviewers(self):
-        return self._config.get_pullrequest_reviewers()
-
-    def get_resource_bundle(self):
+    def get_resource_bundle(self, child_repo):
         resources = []
-        n = self._config.get_resource_len()
+        n = self.config.get_resource_len()
         for i in range(0, n):
-            resources.append(self._create_resource(self._config.get_repository_name(), i))
-        return  ResourceBundle(self._repo, resources, self._log_dir)
+            resources.append(self._create_resource(self.config.get_repository_name(), i))
+        return  ResourceBundle(child_repo, resources, self._log_dir)
 
     def _create_resource(self, repository_name, resource_index):
         r = Resource(
                 repository_name,
-                self._config.get_resource_path(resource_index),
-                self._config.get_resource_filetype(resource_index),
-                self._config.get_resource_language_code(resource_index),
-                self._config.get_resource_translation(resource_index))
+                self.config.get_resource_path(resource_index),
+                self.config.get_resource_filetype(resource_index),
+                self.config.get_resource_language_code(resource_index),
+                self.config.get_resource_translation(resource_index))
         return r
 
 
-    def _add_import_entry(self, translation_bundles):
+    def add_import_entry(self, translation_bundles):
         if len(translation_bundles) == 0: 
             return
         for bundle in translation_bundles:
@@ -164,33 +127,19 @@ class ResourceRepository:
                 #
                 # currently, translation's local_path is set only when translation is completed AND translation path is
                 # set in resource config.
-                if translation.resource_translation_path and translation.local_path:    
-                    self._import_entries.append(GitFileImport(translation.resource_translation_path, translation.local_path))
-                    sys.stdout.write("+'{}': Local path: '{}' ('{}').\n".format(translation.language_code, translation.local_path, translation.resource_translation_path))
+                if translation.translation_path and translation.local_path:    
+                    self._import_entries.append(GitFileImport(translation.translation_path, translation.local_path))
+                    sys.stdout.write("+'{}': Local path: '{}' ('{}').\n".format(translation.language_code, translation.local_path, translation.translation_path))
                 else:
                     # TODO --- diplaying download status might be more informative.
-                    sys.stdout.write("-'{}': Local path: '{}' ('{}').\n".format(translation.language_code, translation.local_path, translation.resource_translation_path))
+                    sys.stdout.write("-'{}': Local path: '{}' ('{}').\n".format(translation.language_code, translation.local_path, translation.translation_path))
 
+    @abc.abstractmethod
     def import_bundles(self, translation_bundles):
-        self._add_import_entry(translation_bundles)
-        if len(self._import_entries) == 0:
-            sys.stderr.write("Nothing to import (_import_entries is empty).")
-            return
-        return self._repo.import_translation(self._import_entries)
+        sys.stderr.write("BUG: Abstract method ResourceRepository.import_bundles() was called.\n")
+        return None
 
+    @abc.abstractmethod
     def submit_pullrequest(self, pullrequest):
-        pullrequest.title = self._config.get_pullrequest_title()
-        pullrequest.description = self._config.get_pullrequest_description()
+        sys.stderr.write("BUG: Abstract method ResourceRepository.submit_pullrequest() was called.\n")
 
-        platform_name = self._config.get_repository_platform().lower()
-        if platform_name == 'github': 
-            pullrequest.assignee = self._config.get_pullrequest_assignee()
-        elif platform_name == 'bitbucket':
-            pass
-        else:
-            pullrequest.submitted = False
-            sys.stderr.write("BUG: Unknown repository platform name: '{}'.\n".format(platform_name))
-            return
-
-        self._repo.submit_pullrequest(pullrequest)
-        

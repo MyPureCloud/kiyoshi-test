@@ -2,6 +2,7 @@ import os, sys, re, requests, json, codecs
 from requests.exceptions import ConnectionError
 from hashlib import sha1
 from TransifexCredsConfigurationClass import TransifexCredsConfiguration
+from TranslationRepositoryClass import TranslationRepository, TranslationBundle, Translation
 
 class TransifexTranslationDownload:
     def __init__(self):
@@ -9,11 +10,11 @@ class TransifexTranslationDownload:
         self.status = str()
         self.errors = 0
 
-class TransifexRepository:
-    def __init__(self, project_name, log_dir):
+class TransifexRepository(TranslationRepository):
+    def __init__(self, config, log_dir):
+        super(TransifexRepository, self).__init__(config, log_dir)
         self._transifex_username = str()
         self._transifex_userpasswd = str()
-        self._project_name = project_name
         self._log_dir = log_dir
         self._TRANSIFEX_CREDS_FILE = 'transifex_creds.yaml'
 
@@ -54,20 +55,39 @@ class TransifexRepository:
         text = ''.join(seeds).encode('utf-8')
         return 'inin-{}'.format(sha1(text).hexdigest())
 
-    def import_resource(self, repository_name, resource_path, import_path):
-        pslug = self.generate_project_slug(self._project_name)
+    def import_resource(self, resource):
+        pslug = self.generate_project_slug(self.config.get_project_name())
         if not pslug:
             return False
         else:
-            sys.stdout.write("Destination project: {} ({})\n".format(pslug, self._project_name))
+            sys.stdout.write("Destination project: {} ({})\n".format(pslug, self.config.get_project_name()))
 
-        rslug = self.generate_resource_slug([repository_name, resource_path])
+        rslug = self.generate_resource_slug([resource.repository_name, resource.resource_path])
         if not rslug:
             return False
         else:
             sys.stdout.write("Destination Resource: {}\n".format(rslug))
 
-        return self._upload(pslug, rslug, import_path)
+        return self._upload(pslug, rslug, resource.local_path)
+
+    def get_translation_bundle(self, repository_name, resource_path, resource_translations):
+        repo_index = self.find_target_repository_index(repository_name)
+        if repo_index == -1:
+            sys.stderr.write("BUG: Failed to find target repository index.\n")
+            return None
+
+        translations = []
+        for lang_code in self.config.get_project_repository_language(repo_index):
+            for translation in resource_translations:
+                if lang_code == translation.language_code:
+                    translation_path = translation.path
+                    break
+            else:
+                translation_path = None
+            translations.append(Translation(repository_name, resource_path, translation_path, lang_code.strip().rstrip()))
+
+        return TranslationBundle(self, translations, self._log_dir)
+
 
     def _get_language_stats(self, project_slug, resource_slug, language_code):
         if not (self._transifex_username and self._transifex_userpasswd):
@@ -92,7 +112,7 @@ class TransifexRepository:
     def _upload(self, project_slug, resource_slug, import_file_path):
         if not (self._transifex_username and self._transifex_userpasswd):
             if not self._set_transifex_creds():
-                return None
+                return False
 
         url = 'http://www.transifex.com/api/2/project/' + project_slug + '/resource/' + resource_slug + '/content/'
         headers = {'Content-type': 'multipart/form-data'}
@@ -115,7 +135,7 @@ class TransifexRepository:
 
     def download_translation(self, repository_name, resource_path, language_code):
         download = TransifexTranslationDownload()        
-        pslug = self.generate_project_slug(self._project_name)
+        pslug = self.generate_project_slug(self.config.get_project_name())
         if not pslug:
             download.error += 1
             download.status = "Failed to generate project slug."

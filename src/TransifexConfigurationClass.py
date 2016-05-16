@@ -17,7 +17,7 @@ class TransifexRepository:
             elif k == 'platform':
                 self.platform = v
             elif k == 'languages':
-                self.languages = v.split(',')
+                self.languages = [s.strip().rstrip() for s in v.split(',')]
             else:
                 self._errors += 1
                 sys.stderr.write("Unexpected key under repository: {}\n".format(k))
