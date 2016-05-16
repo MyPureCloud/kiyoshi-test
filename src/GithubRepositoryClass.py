@@ -3,32 +3,32 @@ from requests.exceptions import ConnectionError
 from collections import OrderedDict
 from GitCredsConfigurationClass import GitCredsConfiguration
 from GitRepositoryClass import GitRepository, GitFileImport
+from ResourceRepositoryClass import ResourceRepository
 
-class GithubRepository(GitRepository):
-    def __init__(self, repository_url, repository_owner, repository_name, branch_name):
-        super(GithubRepository, self).__init__(repository_url, repository_owner, repository_name, branch_name)
+class GithubRepository(ResourceRepository, GitRepository):
+    def __init__(self, config, log_dir):
         self._GITHUB_CREDS_FILE = 'github_creds.yaml'
+        self._log_dir = log_dir
+        ResourceRepository.__init__(self, config, log_dir)
+        GitRepository.__init__(self, config.get_repository_url(), config.get_repository_owner(), config.get_repository_name(), config.get_repository_branch())
 
     def get_repository_name(self):
-        return super(GithubRepository, self).get_repository_name()
-
-    def get_repository_owner(self):
-        return super(GithubRepository, self).get_repository_owner()
+        return self.config.get_repository_name()
 
     def get_repository_platform(self):
-        return 'github' 
+        return self.config.get_repository_platform() 
 
     def get_repository_url(self):
-        return super(GithubRepository, self).get_repository_url()
+        return self.config.get_repository_url()
 
     def get_current_branch_name(self):
-        return super(GithubRepository, self).get_current_branch_name()
+        return self.config.get_repository_branch()
 
     def get_local_resource_path(self, resource_path):
-        return super(GithubRepository, self).get_local_resource_path(resource_path)
+        return GitRepository.get_local_resource_path(self, resource_path)
 
     def _github_creds_set(self):
-        return super(GithubRepository, self).git_creds_set()
+        return self.git_creds_set()
 
     def _set_github_creds(self):
         if not os.path.isfile(self._GITHUB_CREDS_FILE):
@@ -40,31 +40,37 @@ class GithubRepository(GitRepository):
             sys.stderr.write("Failed to parse Github creds config file: {}\n".format(self._GITHUB_CREDS_FILE))
             return False
         else:
-            super(GithubRepository, self).set_git_creds(t.get_username(), t.get_userpasswd(), t.get_useremail(), t.get_user_fullname())
+            self.set_git_creds(t.get_username(), t.get_userpasswd(), t.get_useremail(), t.get_user_fullname())
             return True
 
     def isfile(self, file_path):
-        return super(GithubRepository, self).isfile(file_path)
+        return GitRepository.isfile(self, file_path)
 
     def clone(self):
-        return super(GithubRepository, self).clone()
+        return GitRepository.clone(self)
 
-    def import_translation(self, list_translation_import):
+    def _import_translation(self, list_translation_import):
         if not self._github_creds_set():
             if not self._set_github_creds():
-                sys.stderr.write("Failed to set git creds. Nothing was imported.")
+                sys.stderr.write("Failed to set git creds. Nothing was imported.\n")
                 return None
-        return super(GithubRepository, self).import_translation(list_translation_import)
+        return GitRepository.import_translation(self, list_translation_import)
 
     def _set_remote_url(self):
-        user_name = super(GithubRepository, self).get_user_name()
-        user_passwd = super(GithubRepository, self).get_user_passwd()
-        repository_owner = super(GithubRepository, self).get_repository_owner()
-        repository_name = super(GithubRepository, self).get_repository_name()
+        user_name = self.get_user_name()
+        user_passwd = self.get_user_passwd()
+        repository_owner = self.get_repository_owner()
+        repository_name = self.get_repository_name()
         url = "https://{}:{}@github.com/{}/{}.git".format(user_name, user_passwd, repository_owner, repository_name)
-        return super(GithubRepository, self).set_remote_url(url)
+        return self.set_remote_url(url)
 
     def submit_pullrequest(self, pullrequest):
+        pullrequest.title = self.config.get_pullrequest_title()
+        pullrequest.description = self.config.get_pullrequest_description()
+        pullrequest.assignee = self.config.get_pullrequest_assignee()
+        self._submit_pullrequest(pullrequest)
+
+    def _submit_pullrequest(self, pullrequest):
         list_commited_files = []
         if not self._adjust_staged_translation(pullrequest.branch_name, pullrequest.title, list_commited_files):
             pullrequest.errors += 1
@@ -82,7 +88,7 @@ class GithubRepository(GitRepository):
             for ent in list_commited_files:
                 sys.stdout.write("- '{}'\n".format(ent))
 
-        if not super(GithubRepository, self).push_branch(pullrequest.branch_name):
+        if not GitRepository.push_branch(self, pullrequest.branch_name):
             pullrequest.errors += 1
             pullrequest.submitted = False
             pullrequest.message = "Failed to push feature branch. PR NOT submitted."
@@ -99,7 +105,7 @@ class GithubRepository(GitRepository):
         url = 'https://api.github.com/repos/' + self._repository_owner + '/' + self._repository_name + '/pulls'
         payload = json.dumps({
            'title': pullrequest.title,
-           'body': pullrequest.description,
+           'body': pullrequest_description,
            'head': pullrequest.branch_name,
            'base': self._repository_branch_name}, ensure_ascii=False)
         try:
@@ -158,102 +164,6 @@ class GithubRepository(GitRepository):
         else:
             pullrequest.message = "Submitted PR with no assignee." 
 
-    def submit_pullrequestORIG(self, github_pullrequest_obj):
-        feature_branch_name = github_pullrequest_obj.branch_name
-        pullrequest_title = github_pullrequest_obj.title
-
-        list_commited_files = []
-        if not self._adjust_staged_translation(feature_branch_name, pullrequest_title, list_commited_files):
-            github_pullrequest_obj.errors += 1
-            github_pullrequest_obj.message = "Failed to adjust staged translation. PR NOT submitted."
-            return
-
-        if len(list_commited_files) == 0:
-            github_pullrequest_obj.errors = 0
-            github_pullrequest_obj.submitted = False
-            github_pullrequest_obj.message = "No staged files. PR NOT submitted."
-            return
-        else:
-            sys.stdout.write("Updated files...\n")
-            for ent in list_commited_files:
-                sys.stdout.write("- {}\n".format(ent))
-
-        if not super(GithubRepository, self).push_branch(feature_branch_name):
-            github_pullrequest_obj.errors += 1
-            github_pullrequest_obj.submitted = False
-            github_pullrequest_obj.message = "Failed to push feature branch. PR NOT submitted."
-            return
-
-        if not self._github_creds_set():
-            if not self._set_github_creds():
-                github_pullrequest_obj.errors += 1
-                github_pullrequest_obj.submitted = False
-                github_pullrequest_obj.message = "Failed read Github creds file. PR NOT submitted."
-                return
-
-        pullrequest_description = self._generate_pullrequest_description(github_pullrequest_obj.description, list_commited_files)
-        url = 'https://api.github.com/repos/' + self._repository_owner + '/' + self._repository_name + '/pulls'
-        payload = json.dumps({
-           'title': pullrequest_title,
-           'body': pullrequest_description,
-           'head': feature_branch_name,
-           'base': self._repository_branch_name}, ensure_ascii=False)
-        try:
-            r =  requests.post(url, auth=(self._git_username, self._git_userpasswd), data=payload)
-        except ConnectionError as e:
-            github_pullrequest_obj.errors += 1
-            github_pullrequest_obj.submitted = False
-            github_pullrequest_obj.message = "Failed to submit PR. Reason: {}".format(e)
-            return
-        else:
-            pass
-
-        github_pullrequest_obj.status_code = r.status_code
-        if not (r.status_code == 200 or r.status_code == 201):
-            github_pullrequest_obj.submitted = False
-            github_pullrequest_obj.message = "Failed to submit PR. Status code: {}".format(r.status_code)
-            sys.stderr.write("Response context...\n")
-            sys.stderr.write(r.text)
-            return
-
-        github_pullrequest_obj.submitted = True
-        try:
-            j = json.loads(r.text, object_pairs_hook=OrderedDict)
-        except ValueError as e:
-            # PR was succeeded but cannot supply info.
-            github_pullrequest_obj.errors += 1
-            github_pullrequest_obj.message = "Submitted PR but failed to obtain PR details." 
-            sys.stderr.write("Failed read pullrequest result as json. Reason: {}\n".format(e))
-            sys.stderr.write("Response context...\n")
-            sys.stderr.write(r.text)
-            return
-        else:
-            pass
-
-        github_pullrequest_obj.errors = 0
-        for ent in j.items():
-            if ent[0] == 'url':
-                github_pullrequest_obj.url = ent[1]
-            elif ent[0] == 'diff_url':
-                github_pullrequest_obj.diff_url =  ent[1]
-            elif ent[0] == 'number':
-                github_pullrequest_obj.number = ent[1]
-
-        if github_pullrequest_obj.url == None or github_pullrequest_obj.diff_url == None or github_pullrequest_obj.number == None:
-            github_pullrequest_obj.message = "Submitted PR but faild to obtain details due to missng entries." 
-            sys.stderr.write("Failed to obtain url, diff_url or number from PR response.\n")
-            sys.stderr.write("Response context...\n")
-            sys.stderr.write(r.text)
-            return
-
-        if github_pullrequest_obj.assignee:
-            if self._update_assignee(github_pullrequest_obj.number, github_pullrequest_obj.assignee):
-                github_pullrequest_obj.message = "Submitted PR and updated assignee." 
-            else:
-                github_pullrequest_obj.message = "Submitted PR with no assignee." 
-        else:
-            github_pullrequest_obj.message = "Submitted PR with no assignee." 
-
     def _update_assignee(self, issue_number, assignee):
         url = 'https://api.github.com/repos/' + self._repository_owner + '/' + self._repository_name + '/issues/' + str(issue_number)
         payload = json.dumps({'assignee': assignee}, ensure_ascii=False)
@@ -280,7 +190,7 @@ class GithubRepository(GitRepository):
             return False
 
         staged = [] 
-        super(GithubRepository, self).get_staged_file(branch_name, staged)
+        GitRepository.get_staged_file(self, branch_name, staged)
         if len(staged) == 0:
             return False
 
@@ -303,7 +213,7 @@ class GithubRepository(GitRepository):
             for ent in undo:
                 sys.stdout.write("Open: {}\n".format(ent))
 
-        return super(GithubRepository, self).revert_translation(branch_name, undo)
+        return GitRepository.revert_translation(self, branch_name, undo)
 
     def _get_pullrequest(self):
         if not self._github_creds_set():
@@ -341,4 +251,15 @@ class GithubRepository(GitRepository):
                         list_of_open_pullrequest_description.append(pr['body'])
             else:
                 return True
+
+
+    def get_resource_bundle(self):
+        return ResourceRepository.get_resource_bundle(self, self)
+
+    def import_bundles(self, translation_bundles):
+        ResourceRepository.add_import_entry(self, translation_bundles)
+        if len(self._import_entries) == 0:
+            sys.stderr.write("Nothing to import (_import_entries is empty).\n")
+            return
+        return self._import_translation(self._import_entries)
 

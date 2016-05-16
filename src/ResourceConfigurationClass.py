@@ -6,15 +6,8 @@ class ResourceConfiguration:
         self._config = None
         self._errors = 0
 
-    def _load_config(self, config_path):
-        # TODO --- quick scan word like 'platform: github' or 'platform: bitbucket'
-        self._config = GithubConfiguration()
-        return True
-
     def parse(self, config_path):
-        if not self._load_config(config_path):
-            return False
-
+        self._config = GithubConfiguration()
         with open(config_path, "r") as stream:
             data = yaml.load_all(stream)
             if not self._config.parse(data):

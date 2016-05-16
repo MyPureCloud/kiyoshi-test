@@ -71,7 +71,7 @@ class GitRepository(object):
         if not current_branch:
             return False
         if work_branch != current_branch:
-            sys.stdout.write("Local repo branch: Exprected: {}, Current: {}.\n".format(work_branch, current_branch))
+            sys.stdout.write("Local repo branch: Exprected: '{}', Current: '{}'.\n".format(work_branch, current_branch))
             try:
                 git('-C', self._repository_name, 'checkout', work_branch)
             except ErrorReturnCode as e:
@@ -79,7 +79,7 @@ class GitRepository(object):
                 sys.stderr.write("{}\n".format(str(e)))
                 return False
             else:
-                sys.stdout.write("Checked out branch: {}.\n".format(work_branch))
+                sys.stdout.write("Checked out branch: '{}'.\n".format(work_branch))
 
         try: 
             git('-C', self._repository_name, 'pull')
@@ -88,7 +88,7 @@ class GitRepository(object):
             sys.stderr.write("{}\n".format(str(e)))
             return False
         else:
-            sys.stdout.write("Pulled: {} {}\n".format(self._repository_branch_name, self._repository_url))
+            sys.stdout.write("Pulled: '{}' of '{}'\n".format(self._repository_branch_name, self._repository_url))
             return True
 
     def _clone(self):
@@ -100,7 +100,7 @@ class GitRepository(object):
             sys.stderr.write("{}\n".format(str(e)))
             return False
         else:
-            sys.stdout.write("Cloned: {} {}\n".format(self._repository_branch_name, self._repository_url))
+            sys.stdout.write("Cloned: '{}' of '{}'.\n".format(self._repository_branch_name, self._repository_url))
             return True
 
     def isfile(self, file_path):
@@ -117,13 +117,13 @@ class GitRepository(object):
         orig_path = os.path.join(self._repository_name, translation_import_obj.repo_file_path)
         if not os.path.isfile(orig_path):
             self._errors += 1
-            sys.stderr.write("Expected translation file does not exist in local repository: {}\n".format(orig_path))
+            sys.stderr.write("Expected translation file does not exist in local repository: '{}'.\n".format(orig_path))
             return False
 
         new_path = translation_import_obj.import_path
         if not os.path.isfile(new_path):
             self._errors += 1
-            sys.stderr.write("Updated traslation NOT found: {}\n".format(new_path))
+            sys.stderr.write("Updated traslation NOT found: '{}'.\n".format(new_path))
             return False
 
         if filecmp.cmp(orig_path, new_path):
@@ -147,9 +147,9 @@ class GitRepository(object):
 
         # try staging translation as much as possible b/c good ones can be PRed.
         for t in list_translation_import:
-            sys.stdout.write("Importing {}...\n".format(t.import_path))
+            sys.stdout.write("Importing '{}'...\n".format(t.import_path))
             if not self._is_translation_clean(t):
-                sys.stderr.write("Skipped. File is dirty: '{}'.\n".format(t.repo_file_path)) 
+                sys.stderr.write("Skipped staging file. The file is dirty: '{}'.\n".format(t.repo_file_path)) 
                 continue
             if not self._update_translation(t):
                 continue
@@ -254,7 +254,7 @@ class GitRepository(object):
             git('-C', self._repository_name, 'add', file_path)
         except ErrorReturnCode as e:
             self._errors += 1
-            sys.stderr.write("Failed to stage file: {}.\n".format(file_path))
+            sys.stderr.write("Failed to stage file: '{}'.\n".format(file_path))
             sys.stderr.write("{}\n".format(str(e)))
             return False
         else:
@@ -266,16 +266,16 @@ class GitRepository(object):
         current_branch = self.get_current_branch_name()
         if not current_branch:
             return
-        if not work_branch != current_branch:
+        if work_branch != current_branch:
             # this is a bug since correct branch should be set when the repository is cloned/pulled.
             self._errors += 1
-            sys.stderr.write("Local repo branch: Exprected: {}, Current: {}.\n".format(work_branch, current_branch))
+            sys.stderr.write("Local repo branch: Exprected: '{}', Current: '{}'.\n".format(work_branch, current_branch))
             return
 
         if not self._not_staged_for_commit(translation_path):
             # this is a bug since the changes have been ensured before translation file was copied to local repository.
             self._errors += 1
-            sys.stderr.write("Translation file is not listed as 'not stated for commit': {}.\n".format(translation_path))
+            sys.stderr.write("Translation file is not listed as 'not stated for commit': '{}'.\n".format(translation_path))
             return
 
         if self._stage(translation_path):
@@ -335,13 +335,13 @@ class GitRepository(object):
         orig_path = os.path.join(self._repository_name, translation_import_obj.translation_path)
         if not os.path.isfile(orig_path):
             self._errors += 1
-            sys.stderr.write("Expected translation file does not exist in local repository: {}\n".format(orig_path))
+            sys.stderr.write("Expected translation file does not exist in local repository: '{}'.\n".format(orig_path))
             return False
 
         new_path = translation_import_obj.import_path
         if not os.path.isfile(orig_path):
             self._errors += 1
-            sys.stderr.write("Updated traslation NOT found: {}\n".format(new_path))
+            sys.stderr.write("Updated traslation NOT found: '{}'.\n".format(new_path))
             return False
 
         if filecmp.cmp(orig_path, new_path):
@@ -411,15 +411,15 @@ class GitRepository(object):
             else:
                 if len(commit) == 0:
                     errors += 1
-                    sys.stderr.write("Cannot find commit for: {}.\n".format(s))
+                    sys.stderr.write("Cannot find commit for: '{}'.\n".format(s))
                 if len(commit) == 1:
                     if not self._revert_commit(commit, s):
                         errors += 1
                     else:
-                        sys.stdout.write("Reverted: {}.\n".format(s))
+                        sys.stdout.write("Reverted: '{}'.\n".format(s))
                 else:
                     errors += 1
-                    sys.stderr.write("Cannot revert commit. File in multiple commits: {}.\n".format(s))
+                    sys.stderr.write("Cannot revert commit. File in multiple commits: '{}'.\n".format(s))
                     sys.stderr.write("'{}'\n".format(commit))
 
         if branch_switched:

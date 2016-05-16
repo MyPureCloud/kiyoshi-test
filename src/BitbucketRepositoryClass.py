@@ -3,32 +3,32 @@ from requests.exceptions import ConnectionError
 from collections import OrderedDict
 from GitCredsConfigurationClass import GitCredsConfiguration
 from GitRepositoryClass import GitRepository, GitFileImport
+from ResourceRepositoryClass import ResourceRepository
 
-class BitbucketRepository(GitRepository):
-    def __init__(self, repository_url, repository_owner, repository_name, branch_name):
-        super(BitbucketRepository, self).__init__(repository_url, repository_owner, repository_name, branch_name)
+class BitbucketRepository(ResourceRepository, GitRepository):
+    def __init__(self, config, log_dir):
         self._BITBUCKET_CREDS_FILE = 'bitbucket_creds.yaml'
+        self._log_dir = log_dir
+        ResourceRepository.__init__(self, config, log_dir)
+        GitRepository.__init__(self, config.get_repository_url(), config.get_repository_owner(), config.get_repository_name(), config.get_repository_branch())
 
     def get_repository_name(self):
-        return super(BitbucketRepository, self).get_repository_name()
-
-    def get_repository_owner(self):
-        return super(BitbucketRepository, self).get_repository_owner()
+        return self.config.get_repository_name()
 
     def get_repository_platform(self):
-        return 'bitbucket' 
+        return self.config.get_repository_platform() 
 
     def get_repository_url(self):
-        return super(BitbucketRepository, self).get_repository_url()
+        return self.config.get_repository_url()
 
     def get_current_branch_name(self):
-        return super(BitbucketRepository, self).get_current_branch_name()
+        return self.config.get_repository_branch()
 
     def get_local_resource_path(self, resource_path):
-        return super(BitbucketRepository, self).get_local_resource_path(resource_path)
+        return GitRepository.get_local_resource_path(self, resource_path)
 
     def _bitbucket_creds_set(self):
-        return super(BitbucketRepository, self).git_creds_set()
+        return self.git_creds_set()
 
     def _set_bitbucket_creds(self):
         if not os.path.isfile(self._BITBUCKET_CREDS_FILE):
@@ -40,31 +40,46 @@ class BitbucketRepository(GitRepository):
             sys.stderr.write("Failed to parse Github creds config file: {}\n".format(self._BITBUCKET_CREDS_FILE))
             return False
         else:
-            super(BitbucketRepository, self).set_git_creds(t.get_username(), t.get_userpasswd(), t.get_useremail(), t.get_user_fullname())
+            self.set_git_creds(t.get_username(), t.get_userpasswd(), t.get_useremail(), t.get_user_fullname())
             return True
 
     def isfile(self, file_path):
         return super(BitbucketRepository, self).isfile(file_path)
 
     def clone(self):
-        return super(BitbucketRepository, self).clone()
+        return GitRepository.clone(self)
 
-    def import_translation(self, list_translation_import):
+    def get_resource_bundle(self):
+        return ResourceRepository.get_resource_bundle(self, self)
+
+    def _import_translation(self, list_translation_import):
         if not self._bitbucket_creds_set():
             if not self._set_bitbucket_creds():
-                sys.stderr.write("Failed to set git creds. Nothing was imported.")
+                sys.stderr.write("Failed to set git creds. Nothing was imported.\n")
                 return None
-        return super(BitbucketRepository, self).import_translation(list_translation_import)
+        return GitRepository.import_translation(self, list_translation_import)
+
+    def import_bundles(self, translation_bundles):
+        ResourceRepository.add_import_entry(self, translation_bundles)
+        if len(self._import_entries) == 0:
+            sys.stderr.write("Nothing to import (_import_entries is empty).\n")
+            return
+        return self._import_translation(self._import_entries)
 
     def _set_remote_url(self):
-        user_name = super(BitbucketRepository, self).get_user_name()
-        user_passwd = super(BitbucketRepository, self).get_user_passwd()
-        repository_owner = super(BitbucketRepository, self).get_repository_owner()
-        repository_name = super(BitbucketRepository, self).get_repository_name()
+        user_name = self.get_user_name()
+        user_passwd = self.get_user_passwd()
+        repository_owner = self.get_repository_owner()
+        repository_name = self.get_repository_name()
         url = "https://{}:{}@bitbucket.org/{}/{}.git".format(user_name, user_passwd, repository_owner, repository_name)
-        return super(BitbucketRepository, self).set_remote_url(url)
+        return self.set_remote_url(url)
 
     def submit_pullrequest(self, pullrequest):
+        pullrequest.title = self.config.get_pullrequest_title()
+        pullrequest.description = self.config.get_pullrequest_description()
+        self._submit_pullrequest(pullrequest)
+
+    def _submit_pullrequest(self, pullrequest):
         list_commited_files = []
         if not self._adjust_staged_translation(pullrequest.branch_name, list_commited_files):
             pullrequest.errors += 1

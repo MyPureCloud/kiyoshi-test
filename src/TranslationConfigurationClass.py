@@ -3,18 +3,13 @@ from TransifexConfigurationClass import TransifexConfiguration
 
 class TranslationConfiguration:
     def __init__(self):
+        self._path = str()
         self._config = None
         self._errors = 0
 
-    def _load_config(self, config_path):
-        # TODO --- quick scan word like 'platform: transifex' or 'platform: croudin'
-        self._config = TransifexConfiguration()
-        return True
-
     def parse(self, config_path):
-        if not self._load_config(config_path):
-            return False
-
+        self._path = config_path
+        self._config = TransifexConfiguration()
         with open(config_path, "r") as stream:
             data = yaml.load_all(stream)
             if not self._config.parse(data):
@@ -24,6 +19,9 @@ class TranslationConfiguration:
             return True
         else:
             return False
+
+    def get_path(self):
+        return self._path
 
     def get_project_name(self):
         return self._config.get_project_name()

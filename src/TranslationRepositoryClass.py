@@ -1,27 +1,16 @@
-import sys, os
-from TranslationConfigurationClass import TranslationConfiguration
-from TransifexRepositoryClass import TransifexRepository
-#from ResourceRepositoryClass import Resource
+import sys, os, abc
 
 class TranslationRepositoryInitializationError(Exception):
     def __init__(self, message):
         super(TranslationRepositoryInitializationError, self).__init__(message)
 
 class Translation:
-    def __init__(self, resource, language_code):
-        # TODO --- make this 'resorce' independent. currently it is pretty much Github.
-        self.resource = resource
-        self.language_code = language_code # which is defined in translation config.
+    def __init__(self, repository_name, resource_path, translation_path, language_code):
+        self.repository_name = repository_name
+        self.resource_path = resource_path
+        self.translation_path = translation_path
+        self.language_code = language_code
         self.local_path = str()
-
-        # translation path for the language (self.language_code) which is listed in resouce config file.
-        # None if resouce config does not list translation path for the language.
-        for translation in self.resource.resource_translations:
-            if self.language_code == translation.language_code:
-                self.resource_translation_path = translation.path
-                break
-        else:
-            self.resource_translation_path = None
 
         # TODO --- add download status (can be used to display Translation in TranslationBundle)
 
@@ -40,15 +29,8 @@ class TranslationBundle:
         if self._current_index > self._last_index:
             raise StopIteration
         else:
-            # download translation if it is listed in resource config.
             translation = self._translations[self._current_index]
-            found = False
-            for k in translation.resource.resource_translations:
-                if translation.language_code == k.language_code:
-                    found = True
-                    break
-            
-            if found:
+            if translation.translation_path:
                 translation.local_paths = self._prepare_local_translations(self._current_index)
             else:
                 #sys.stdout.write("'{}': Not listed in resource config. Skipped.\n".format(translation.language_code))
@@ -61,7 +43,7 @@ class TranslationBundle:
 
     def _prepare_local_translations(self, translation_index):
         translation = self._translations[translation_index]
-        download = self.platform_repo.download_translation(translation.resource.repository_name, translation.resource.resource_path, translation.language_code)
+        download = self.platform_repo.download_translation(translation.repository_name, translation.resource_path, translation.language_code)
         if download.errors == 0:
             if download.path:
                 translation.local_path = download.path
@@ -73,54 +55,30 @@ class TranslationBundle:
             sys.stderr.write("{} Failed to download. Status code: {}\n".format(translation.language_code, download.status))
             translation.local_path = None
 
-class TranslationRepository:
-    def __init__(self, config_path, log_dir):
-        self._config_path = config_path
+class TranslationRepository(object):
+    __metaclass__ = abc.ABCMeta
+    def __init__(self, config, log_dir):
+        self.config = config
         self._log_dir = log_dir
-        self._config = None
-
-        self._load_config()
-
-    def _load_config(self):
-        self._config = TranslationConfiguration()
-        if not self._config.parse(self._config_path):
-            raise TranslationRepositoryInitializationError("Failed to parse config: {}".format(self._config_path))
 
     def get_reviewers(self):
-        return self._config.get_project_reviewers()
+        return self.config.get_project_reviewers()
 
-    def _find_target_repository_index(self, resource_repo_name):
-        n = self._config.get_project_repository_len()
+    def find_target_repository_index(self, resource_repo_name):
+        n = self.config.get_project_repository_len()
         for i in range(0, n):
-            if resource_repo_name == self._config.get_project_repository_name(i):
+            if resource_repo_name == self.config.get_project_repository_name(i):
                 return i
         else:
             return -1 
 
-    def _get_platform_repository(self):
-        # TODO --- find it from plugin
-        return TransifexRepository(self._config.get_project_name(), self._log_dir)
-
+    @abc.abstractmethod
     def get_translation_bundle(self, resource):
-        repo = self._get_platform_repository()
-        if not repo:
-            return None
+        sys.stderr.write("BUG: Abstract method TranslationRepository.get_translation_bundle() was called.\n")
+        return None
 
-        repo_index = self._find_target_repository_index(resource.repository_name)
-        if repo_index == -1:
-            sys.stderr.write("BUG: Failed to find target repository index.\n")
-            return None
-
-        translations = []
-        for lang_code in self._config.get_project_repository_language(repo_index):
-            translations.append(Translation(resource, lang_code.strip().rstrip()))
-
-        return TranslationBundle(repo, translations, self._log_dir)
-
+    @abc.abstractmethod
     def import_resource(self, resource):
-        # TODO --- load repo as plugin
-        repo = TransifexRepository(self._config.get_project_name(), self._log_dir)
-
-        # TODO --- make TreansifexRepository accept generic resource context as a param
-        return repo.import_resource(resource.repository_name, resource.resource_path, resource.local_path)
+        sys.stderr.write("BUG: Abstract method TranslationRepository.import_resource() was called.\n")
+        return False
 
