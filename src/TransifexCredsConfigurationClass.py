@@ -5,6 +5,8 @@ class TransifexCredsConfiguration:
         self._user_name = str()
         self._user_passwd = str()
         self._user_email = str()
+        self._project_slug_prefix = str()
+        self._resource_slug_prefix = str()
 
     def parse(self, config_path):
         with open(config_path, "r") as stream:
@@ -21,6 +23,10 @@ class TransifexCredsConfiguration:
                     self._user_passwd = v
                 elif k == 'user_email':
                     self._user_email = v
+                elif k == 'project_slug_prefix':
+                    self._project_slug_prefix = v
+                elif k == 'resource_slug_prefix':
+                    self._resource_slug_prefix = v
                 else:
                     errors += 1
                     sys.stderr.write("Unexpected key: {}.\n".format(k))
@@ -50,4 +56,10 @@ class TransifexCredsConfiguration:
 
     def get_useremail(self):
         return self._user_email
+
+    def get_project_slug_prefix(self):
+        return self._project_slug_prefix
+
+    def get_resource_slug_prefix(self):
+        return self._resource_slug_prefix
 
