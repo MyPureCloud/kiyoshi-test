@@ -8,7 +8,7 @@ class ResourceValidator:
         if resource_file_type == 'json':
             return self._validate_json(resource_path)
         else:
-            sys.stdout.write("Resource validation is NIY for {}.\n".format(resoruce_file_type))
+            sys.stdout.write("No resource validator for {}.\n".format(resource_file_type))
             return True
 
     def _validate_json(self, resource_path):
