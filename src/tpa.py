@@ -32,7 +32,7 @@ def _process_args(argv, options):
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             usage(sys.stdout)
-            system.exit(0)
+            sys.exit(0)
         elif opt == '--config':
             options['config'] = arg
         elif opt == '--dest':
@@ -43,7 +43,7 @@ def _process_args(argv, options):
             options['exec_only'] = arg
         else:
             sys.stderr.write("Unknown option: {}\n".format(opt))
-            system.exit(1)
+            sys.exit(1)
 
     if not options['dest']:
         sys.stdout.write("--dest option is required in command line arguments.\n")
