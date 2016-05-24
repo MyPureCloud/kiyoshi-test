@@ -23,7 +23,7 @@ def usage(dest_module):
 
 def _process_args(argv, options):
     try:
-        opts, args = getopt.getopt(argv, 'h', ['help', 'config=', 'dest=', 'log=', 'exec-only'])
+        opts, args = getopt.getopt(argv, 'h', ['help', 'config=', 'dest=', 'log=', 'exec-only='])
     except getopt.GetoptError:
         usage(sys.stderr)
         sys.stderr.write("Invalid command line option.\n")
@@ -87,11 +87,11 @@ def main(argv):
     config_paths = []
     exec_only_file_name = params['exec_only']
     if exec_only_file_name:
-        exec_only_file_path = os.path.isfile(os.path.join(config_dir, exec_only_file_name))
+        exec_only_file_path = os.path.join(config_dir, exec_only_file_name)
         if os.path.isfile(exec_only_file_path):
-            config_path.append(exec_only_file_path)
+            config_paths.append(exec_only_file_name)
         else:
-            sys.stderr.write("Config file specified by --exec-only not found: '{}'.".format(exec_only_file_name))
+            sys.stderr.write("Config file specified by --exec-only not found: '{}'.\n".format(exec_only_file_name))
             sys.exit(1)
     else:
         for filename in os.listdir(config_dir):
