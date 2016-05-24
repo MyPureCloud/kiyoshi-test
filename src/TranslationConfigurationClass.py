@@ -44,8 +44,8 @@ class TranslationConfiguration:
     def get_project_repository_config_path(self, repository_index):
         return self._config.get_project_repository_config_path(repository_index)
 
-    def get_project_repository_language(self, repository_index):
-        return self._config.get_project_repository_language(repository_index)
+    def get_project_languages(self):
+        return self._config.get_project_languages()
 
     def get_project_reviewers(self):
         return self._config.get_project_reviewers()

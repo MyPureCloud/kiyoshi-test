@@ -87,13 +87,8 @@ class TransifexRepository(TranslationRepository):
         return self._upload(pslug, rslug, resource.local_path)
 
     def get_translation_bundle(self, repository_name, resource_path, resource_translations):
-        repo_index = self.find_target_repository_index(repository_name)
-        if repo_index == -1:
-            sys.stderr.write("BUG: Failed to find target repository index.\n")
-            return None
-
         translations = []
-        for lang_code in self.config.get_project_repository_language(repo_index):
+        for lang_code in self.config.get_project_languages():
             for translation in resource_translations:
                 if lang_code == translation.language_code:
                     translation_path = translation.path

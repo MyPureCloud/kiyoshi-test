@@ -5,7 +5,6 @@ class TransifexRepository:
         self.name = str()
         self.owner = str()
         self.platform = str()
-        self.languages = []
         self._errors = 0
 
     def parse(self, value):
@@ -16,8 +15,6 @@ class TransifexRepository:
                 self.owner = v
             elif k == 'platform':
                 self.platform = v
-            elif k == 'languages':
-                self.languages = [s.strip().rstrip() for s in v.split(',')]
             else:
                 self._errors += 1
                 sys.stderr.write("Unexpected key under repository: {}\n".format(k))
@@ -36,9 +33,6 @@ class TransifexRepository:
         if not self.platform:
             self._errors += 1
             sys.stderr.write("repository.platform is not defined.\n")
-
-        if len(self.languages) == 0:
-            sys.stderr.write("repository.languages is not defined.\n")
 
         if self._errors == 0:
             return True
@@ -80,6 +74,7 @@ class TransifexProject:
         self.platform = str()
         self.name = str()
         self.repositories = TransifexRepositories()
+        self.languages = []
         self.reviewer_entry = []
         self._errors = 0
 
@@ -92,6 +87,8 @@ class TransifexProject:
             elif k == 'repositories':
                 if not self.repositories.parse(v):
                     self._errors += 1
+            elif k == 'languages':
+                self.languages = [s.strip().rstrip() for s in v.split(',')]
             elif k == 'reviewers':
                 for i in v:
                     self.reviewer_entry.append(i)
@@ -159,8 +156,8 @@ class TransifexConfiguration:
     def get_project_repository_platform(self, repository_index):
         return self._project.repositories.repository_entry[repository_index].platform
     
-    def get_project_repository_language(self, repository_index):
-        return copy.deepcopy(self._project.repositories.repository_entry[repository_index].languages)
+    def get_project_languages(self):
+        return copy.deepcopy(self._project.languages)
 
     def get_project_reviewers(self):
         return copy.deepcopy(self._project.reviewer_entry)
