@@ -21,9 +21,6 @@ class BitbucketRepository(ResourceRepository, GitRepository):
     def get_repository_url(self):
         return self.config.get_repository_url()
 
-    def get_current_branch_name(self):
-        return self.config.get_repository_branch()
-
     def get_local_resource_path(self, resource_path):
         return GitRepository.get_local_resource_path(self, resource_path)
 
