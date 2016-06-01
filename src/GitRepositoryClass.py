@@ -262,16 +262,6 @@ class GitRepository(object):
             return True
 
     def _stage_translation(self, translation_path, list_staged_path):
-        work_branch = self._repository_branch_name
-        current_branch = self.get_current_branch_name()
-        if not current_branch:
-            return
-        if work_branch != current_branch:
-            # this is a bug since correct branch should be set when the repository is cloned/pulled.
-            self._errors += 1
-            sys.stderr.write("Local repo branch: Exprected: '{}', Current: '{}'.\n".format(work_branch, current_branch))
-            return
-
         if not self._not_staged_for_commit(translation_path):
             # this is a bug since the changes have been ensured before translation file was copied to local repository.
             self._errors += 1
@@ -330,30 +320,6 @@ class GitRepository(object):
             return False
         else:
             return True
-
-    def update_translation(self, translation_import_obj):
-        orig_path = os.path.join(self._repository_name, translation_import_obj.translation_path)
-        if not os.path.isfile(orig_path):
-            self._errors += 1
-            sys.stderr.write("Expected translation file does not exist in local repository: '{}'.\n".format(orig_path))
-            return False
-
-        new_path = translation_import_obj.import_path
-        if not os.path.isfile(orig_path):
-            self._errors += 1
-            sys.stderr.write("Updated traslation NOT found: '{}'.\n".format(new_path))
-            return False
-
-        if filecmp.cmp(orig_path, new_path):
-            sys.stdout.write("Translation file does not contain any changes.\n")
-            return False
-
-        self._display_diff(orig_path, new_path)
-
-        copyfile(new_path, orig_path)
-        sys.stdout.write("Updated translation in local repository.\n")
-
-        return True
 
     def _display_diff(self, file1, file2):
         with open(file1, 'r') as fi1, open(file2, 'r') as fi2:
