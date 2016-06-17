@@ -163,13 +163,9 @@ class BitbucketRepository(ResourceRepository, GitRepository):
             pass
 
         pullrequest.errors = 0
-        for ent in j.items():
-            if ent[0] == 'url':
-                pullrequest.url = ent[1]
-            elif ent[0] == 'diff_url':
-                pullrequest.diff_url =  ent[1]
-            elif ent[0] == 'number':
-                pullrequest.number = ent[1]
+        pullrequest.number = j['id']
+        pullrequest.url = j['links']['self']['href']
+        pullrequest.diff_url = j['links']['diff']['href']
 
         if pullrequest.url == None or pullrequest.diff_url == None or pullrequest.number == None:
             pullrequest.message = "Submitted PR but faild to obtain details due to missng entries." 
