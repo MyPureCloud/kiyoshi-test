@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+{% import urllib %}
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>TPA Logs</title>
+    </head>
+    <body>
+        <div id="body">
+            [<a href="http://localhost:8080/">index</a>] | [<a href="http://localhost:8080/jobs">jobs</a>]
+            <h1>TPA Logs</h1>
+            <h2>TU</h2>
+            <table id="logs">
+                <tr><th>Datetime</th><th>Config</th><th>Status</th></tr>
+                {% for entry in tu_entries %}
+                    {% set param = urllib.quote(entry.log_dir, safe='') %}
+                    <tr><td>{{entry.datetime}}</td><td>{{entry.config_name}}</td><td><a href="http://localhost:8080/log/{{param}}">{{entry.status}}</a></td></tr>
+                {% end %}
+            </table>
+            <h2>RU</h2>
+            <table id="logs">
+                <tr><th>Datetime</th><th>Config</th><th>Status</th></tr>
+                {% for entry in ru_entries %}
+                    {% set param = urllib.quote(entry.log_dir, safe='') %}
+                    <tr><td>{{entry.datetime}}</td><td>{{entry.config_name}}</td><td><a href="http://localhost:8080/log/{{param}}">{{entry.status}}</a></td></tr>
+                {% end %}
+            </table>
+        </div>
+    </body>
+</html>
+                                       
