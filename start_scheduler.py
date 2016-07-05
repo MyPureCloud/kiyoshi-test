@@ -1,4 +1,4 @@
-from tpa.scheduler.server.schedule_server import ScheduleServer
+from scheduler.server.schedule_server import ScheduleServer
 
 def main():
     svr = ScheduleServer()
