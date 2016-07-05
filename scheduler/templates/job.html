@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+{% import urllib %}
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>TPA Job Details</title>
+    </head>
+    <body>
+        <div id="body">
+            [<a href="/">index</a>] | [<a href="/jobs">jobs</a>]
+            <h1>{{job.name}}</h1>
+            <h2>Job Details</h2>
+            <table>
+                <tr><td>Name</td><td>{{job.name}}</td></tr>
+                <tr><td>Description</td><td>{{job.description}}</td></tr>
+                <tr><td>Status</td><td>{{job.status}}</td></tr>
+                <tr><td>Scheduled at</td><td>n/a</td></tr>
+                <tr><td>Resource Config File</td><td>{{job.resource_config_filename}}</td></tr>
+                <tr><td>Translation Config File</td><td>{{job.translation_config_filename}}</td></tr>
+            </table>
+            <hr>
+
+
+            <h2>Recent Results</h2>
+            [<a href="/run/{{job.id}}">Execute job now</a>]
+
+            {% if job.class_name == 'ResourceUploaderJob' %}
+            <table id="logs">
+                <tr><th>Status</th><th>Datetime</th><th>Results</th></tr>
+                {% for j in runjobs %}
+                    {% set param = urllib.quote(j.get_log_dir(), safe='') %}
+                    {% set datetime = j.get_exec_datetime() %}
+                    {% set status = j.get_exec_status() %}
+                    {% set results = j.get_exec_result_string() %}
+                    <tr><td><a href="/log/{{param}}">{{status}}</a><td>{{datetime}}</td><td>{{results}}</td></td></tr>
+                {% end %}
+            </table>
+            {% end %}
+
+            {% if job.class_name == 'TranslationUploaderJob' %}
+            <table id="logs">
+                <tr><th>Status</th><th>Datetime</th><th>Results</th></tr>
+                {% for j in runjobs %}
+                    {% set param = urllib.quote(j.get_log_dir(), safe='') %}
+                    {% set datetime = j.get_exec_datetime() %}
+                    {% set status = j.get_exec_status() %}
+                    {% set results = j.get_exec_result_string() %}
+                    <tr><td><a href="/log/{{param}}">{{status}}</a><td>{{datetime}}</td><td>{{results}}</td></td></tr>
+                {% end %}
+            </table>
+            {% end %}
+        </div>
+    </body>
+</html>
+                                       

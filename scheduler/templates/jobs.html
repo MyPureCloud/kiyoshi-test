@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+{% import urllib %}
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>TPA Jobs</title>
+    </head>
+    <body>
+        <div id="body">
+            [<a href="/">index</a>]
+            <h1>TPA Jobs</h1>
+            <h2>Active Jobs</h2>
+            <table id="jobs">
+                <tr><th>Status</th><th>Name</th><th>Description</th><th>Exec Date</th><th>Results</th></tr>
+                {% for job in jobs %}
+                    {% if job.status == 'active' %}
+                        {% set param = urllib.quote(job.id, safe='') %}
+                        {% set status = job.get_exec_status() %}
+                        {% set datetime = job.get_exec_datetime() %}
+                        {% set results = job.get_exec_result_string() %}
+                        <tr><td>{{status}}</td><td><a href="/job/{{param}}">{{job.name}}</a></td><td>{{job.description}}</td><td>{{datetime}}</td><td>{{results}}</td></tr>
+                    {% end %}
+                {% end %}
+            </table>
+            <h2>Suspened Jobs</h2>
+            <table id="jobs">
+                <tr><th>Name</th><th>Desctiption</th></tr>
+                {% for job in jobs %}
+                    {% if job.status == 'suspended' %}
+                        {% set param = urllib.quote(job.id, safe='') %}
+                        <tr><td><a href="/job/{{param}}">{{job.name}}</a></td><td>{{job.description}}</td></tr>
+                    {% end %}
+                {% end %}
+            </table>
+        </div>
+    </body>
+</html>
+                                       

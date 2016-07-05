@@ -1,13 +1,14 @@
 import sys, os, re, requests, json
 from requests.exceptions import ConnectionError
 from collections import OrderedDict
+
+import settings
 from GitCredsConfigurationClass import GitCredsConfiguration
 from GitRepositoryClass import GitRepository, GitFileImport
 from ResourceRepositoryClass import ResourceRepository
 
 class BitbucketRepository(ResourceRepository, GitRepository):
     def __init__(self, config, log_dir):
-        self._BITBUCKET_CREDS_FILE = 'bitbucket_creds.yaml'
         self._log_dir = log_dir
         ResourceRepository.__init__(self, config, log_dir)
         GitRepository.__init__(self, config.get_repository_url(), config.get_repository_owner(), config.get_repository_name(), config.get_repository_branch())
@@ -28,13 +29,13 @@ class BitbucketRepository(ResourceRepository, GitRepository):
         return self.git_creds_set()
 
     def _set_bitbucket_creds(self):
-        if not os.path.isfile(self._BITBUCKET_CREDS_FILE):
-            sys.stderr.write("Bitbucket creds config file NOT found: {}.\n".format(self._BITBUCKET_CREDS_FILE))
+        if not os.path.isfile(settings.BITBUCKET_CREDS_FILE):
+            sys.stderr.write("File not found: {}.\n".format(settings.BITBUCKET_CREDS_FILE))
             return False
 
         t = GitCredsConfiguration()
-        if not t.parse(self._BITBUCKET_CREDS_FILE):
-            sys.stderr.write("Failed to parse Github creds config file: {}\n".format(self._BITBUCKET_CREDS_FILE))
+        if not t.parse(settings.BITBUCKET_CREDS_FILE):
+            sys.stderr.write("Failed to parse: {}\n".format(settings.BITBUCKET_CREDS_FILE))
             return False
         else:
             self.set_git_creds(t.get_username(), t.get_userpasswd(), t.get_useremail(), t.get_user_fullname())
@@ -82,12 +83,28 @@ class BitbucketRepository(ResourceRepository, GitRepository):
             pullrequest.errors += 1
             pullrequest.submitted = False
             pullrequest.message = "Failed to adjust staged translation. PR NOT submitted."
+            d = {
+                "operation": "TranslationUpload",
+                "results": "FAILURE",
+                "reason": pullrequest.message,
+                "status_code": None,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
 
         if len(list_commited_files) == 0:
             pullrequest.errors = 0
             pullrequest.submitted = False
             pullrequest.message = "No staged files. PR NOT submitted."
+            d = {
+                "operation": "TranslationUpload",
+                "results": "SUCCESS",
+                "reason": pullrequest.message,
+                "status_code": None,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
         else:
             for ent in list_commited_files:
@@ -97,6 +114,14 @@ class BitbucketRepository(ResourceRepository, GitRepository):
             pullrequest.errors += 1
             pullrequest.submitted = False
             pullrequest.message = "Failed to push feature branch. PR NOT submitted."
+            d = {
+                "operation": "TranslationUpload",
+                "results": "FAILURE",
+                "reason": pullrequest.message,
+                "status_code": None,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
 
         if not self._bitbucket_creds_set():
@@ -104,6 +129,14 @@ class BitbucketRepository(ResourceRepository, GitRepository):
                 pullrequest.errors += 1
                 pullrequest.submitted = False
                 pullrequest.message = "Failed to read bitbucket creds file. PR NOT submitted."
+                d = {
+                    "operation": "TranslationUpload",
+                    "results": "FAILURE",
+                    "reason": pullrequest.message,
+                    "status_code": None,
+                    "pullrequest_url": None
+                }
+                sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
                 return
 
         pullrequest_description = self._generate_pullrequest_description(pullrequest.description, list_commited_files)
@@ -136,6 +169,14 @@ class BitbucketRepository(ResourceRepository, GitRepository):
             pullrequest.errors += 1
             pullrequest.submitted = False
             pullrequest.message = "Failed to submit PR. Reason: '{}'.".format(e)
+            d = {
+                "operation": "TranslationUpload",
+                "results": "FAILURE",
+                "reason": pullrequest.message,
+                "status_code": r.status_code,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
         else:
             pass
@@ -146,6 +187,14 @@ class BitbucketRepository(ResourceRepository, GitRepository):
             pullrequest.message = "Failed to submit PR. Status code: '{}'.".format(r.status_code)
             sys.stderr.write("Response context...\n")
             sys.stderr.write(r.text)
+            d = {
+                "operation": "TranslationUpload",
+                "results": "FAILURE",
+                "reason": pullrequest.message,
+                "status_code": r.status_code,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
 
         pullrequest.submitted = True
@@ -158,6 +207,14 @@ class BitbucketRepository(ResourceRepository, GitRepository):
             sys.stderr.write("Failed read pullrequest result as json. Reason: '{}'.\n".format(e))
             sys.stderr.write("Response context...\n")
             sys.stderr.write(r.text)
+            d = {
+                "operation": "TranslationUpload",
+                "results": "FAILURE",
+                "reason": pullrequest.message,
+                "status_code": None,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
         else:
             pass
@@ -172,7 +229,24 @@ class BitbucketRepository(ResourceRepository, GitRepository):
             sys.stderr.write("Failed to obtain url, diff_url or number from PR response.\n")
             sys.stderr.write("Response context...\n")
             sys.stderr.write(r.text)
+            d = {
+                "operation": "TranslationUpload",
+                "results": "SUCCESS",
+                "reason": pullrequest.message,
+                "status_code": r.status_code,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
+
+        d = {
+            "operation": "TranslationUpload",
+            "results": "SUCCESS",
+            "reason": pullrequest.message,
+            "status_code": r.status_code,
+            "pullrequest_url": pullrequest.url
+        }
+        sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
 
     def _generate_pullrequest_description(self, pullrequest_description, list_commited_files):
         return '* ' + pullrequest_description + '\n\n* Translation Process Automation generated line (DO NOT EDIT): [' + ','.join(list_commited_files) + ']' 

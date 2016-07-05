@@ -1,6 +1,8 @@
 import os, sys, re, requests, json, codecs
 from requests.exceptions import ConnectionError
 from hashlib import sha1
+
+import settings
 from TransifexCredsConfigurationClass import TransifexCredsConfiguration
 from TranslationRepositoryClass import TranslationRepository, TranslationBundle, Translation
 
@@ -18,16 +20,15 @@ class TransifexRepository(TranslationRepository):
         self._transifex_project_slug_prefix = str()
         self._transifex_resource_slug_prefix = str()
         self._log_dir = log_dir
-        self._TRANSIFEX_CREDS_FILE = 'transifex_creds.yaml'
 
     def _set_transifex_creds(self):
-        if not os.path.isfile(self._TRANSIFEX_CREDS_FILE):
-            sys.stderr.write("Transifex creds config file NOT found: {}.\n".format(self._TRANSIFEX_CREDS_FILE))
+        if not os.path.isfile(settings.TRANSIFEX_CREDS_FILE):
+            sys.stderr.write("File not found: {}.\n".format(settings.TRANSIFEX_CREDS_FILE))
             return False
 
         t = TransifexCredsConfiguration()
-        if not t.parse(self._TRANSIFEX_CREDS_FILE):
-            sys.stderr.write("Failed to parse Transifex creds config file: {}\n".format(self._TRANSIFEX_CREDS_FILE))
+        if not t.parse(settings.TRANSIFEX_CREDS_FILE):
+            sys.stderr.write("Failed to parse: {}\n".format(settings.TRANSIFEX_CREDS_FILE))
             return False
         else:
             self._transifex_username = t.get_username()
@@ -84,7 +85,7 @@ class TransifexRepository(TranslationRepository):
         else:
             sys.stdout.write("Destination Resource: {}\n".format(rslug))
 
-        return self._upload(pslug, rslug, resource.local_path)
+        return self._upload(pslug, rslug, resource.local_path, resource.repository_name, resource.resource_path)
 
     def get_translation_bundle(self, repository_name, resource_path, resource_translations):
         translations = []
@@ -120,7 +121,39 @@ class TransifexRepository(TranslationRepository):
         else:
             return False
 
-    def _upload(self, project_slug, resource_slug, import_file_path):
+    def _display_upload_stats(self, status_code, response_text, project_slug, resource_slug, resource_full_path): 
+        num_new = 'n/a'
+        num_mod = 'n/a'
+        num_del = 'n/a'
+        result = 'FAILURE'
+        if status_code == 200 or status_code == 201:
+            sys.stdout.write(response_text + "\n")
+            try:
+                j = json.loads(response_text)
+            except ValueError as e:
+                sys.stderr.write("Failed read response result as json. Reason: '{}'.\n".format(e))
+            else:
+                num_new = j['strings_added']
+                num_mod = j['strings_updated']
+                num_del = j['strings_delete']
+                result = 'SUCCESS'
+        else:
+            sys.stderr.write(response_text + "\n")
+        
+        d = {
+            "operation": "ResourceUpload",
+            "results": result,
+            "resource_full_path": resource_full_path,
+            "status_code": status_code,
+            "project_slug": project_slug,
+            "resource_slug": resource_slug,
+            "new_strings": num_new,
+            "mod_strings": num_mod,
+            "del_strings": num_del
+            }
+        sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
+
+    def _upload(self, project_slug, resource_slug, import_file_path, repository_name, resource_path):
         if not (self._transifex_username and self._transifex_userpasswd):
             if not self._set_transifex_creds():
                 return False
@@ -134,13 +167,11 @@ class TransifexRepository(TranslationRepository):
             sys.stderr.write("{}\n".format(e))
             return False
         else:
+            self._display_upload_stats(r.status_code, r.text, project_slug, resource_slug, os.path.join(repository_name, resource_path)) 
             if r.status_code == 200 or r.status_code == 201:
-                sys.stdout.write("Uploaded.\n")
-                sys.stdout.write(r.text)
                 os.rename(import_file_path, os.path.join(self._log_dir, resource_slug + '_transifex_imported'))
                 return True
             else:
-                sys.stderr.write("Failed to upload. Status code: {}, pslug: '{}', rslug: '{}'\n".format(r.status_code, project_slug, resource_slug))
                 os.rename(import_file_path, os.path.join(self._log_dir, resource_slug + '_import_failed'))
                 return False
 

@@ -1,13 +1,14 @@
 import sys, os, re, requests, json
 from requests.exceptions import ConnectionError
 from collections import OrderedDict
+
+import settings
 from GitCredsConfigurationClass import GitCredsConfiguration
 from GitRepositoryClass import GitRepository, GitFileImport
 from ResourceRepositoryClass import ResourceRepository
 
 class GithubRepository(ResourceRepository, GitRepository):
     def __init__(self, config, log_dir):
-        self._GITHUB_CREDS_FILE = 'github_creds.yaml'
         self._log_dir = log_dir
         ResourceRepository.__init__(self, config, log_dir)
         GitRepository.__init__(self, config.get_repository_url(), config.get_repository_owner(), config.get_repository_name(), config.get_repository_branch())
@@ -28,13 +29,13 @@ class GithubRepository(ResourceRepository, GitRepository):
         return self.git_creds_set()
 
     def _set_github_creds(self):
-        if not os.path.isfile(self._GITHUB_CREDS_FILE):
-            sys.stderr.write("Github creds config file NOT found: {}.\n".format(self._GITHUB_CREDS_FILE))
+        if not os.path.isfile(settings.GITHUB_CREDS_FILE):
+            sys.stderr.write("File not found: {}.\n".format(settings.GITHUB_CREDS_FILE))
             return False
 
         t = GitCredsConfiguration()
-        if not t.parse(self._GITHUB_CREDS_FILE):
-            sys.stderr.write("Failed to parse Github creds config file: {}\n".format(self._GITHUB_CREDS_FILE))
+        if not t.parse(settings.GITHUB_CREDS_FILE):
+            sys.stderr.write("Failed to parse: {}\n".format(settings.GITHUB_CREDS_FILE))
             return False
         else:
             self.set_git_creds(t.get_username(), t.get_userpasswd(), t.get_useremail(), t.get_user_fullname())
@@ -73,12 +74,28 @@ class GithubRepository(ResourceRepository, GitRepository):
             pullrequest.errors += 1
             pullrequest.submitted = False
             pullrequest.message = "Failed to adjust staged translation. PR NOT submitted."
+            d = {
+                "operation": "TranslationUpload",
+                "results": "FAILURE",
+                "reason": pullrequest.message,
+                "status_code": None,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
 
         if len(list_commited_files) == 0:
             pullrequest.errors = 0
             pullrequest.submitted = False
             pullrequest.message = "No staged files. PR NOT submitted."
+            d = {
+                "operation": "TranslationUpload",
+                "results": "SUCCESS",
+                "reason": pullrequest.message,
+                "status_code": None,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
         else:
             sys.stdout.write("Updated files...\n")
@@ -89,6 +106,14 @@ class GithubRepository(ResourceRepository, GitRepository):
             pullrequest.errors += 1
             pullrequest.submitted = False
             pullrequest.message = "Failed to push feature branch. PR NOT submitted."
+            d = {
+                "operation": "TranslationUpload",
+                "results": "FAILURE",
+                "reason": pullrequest.message,
+                "status_code": None,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
 
         if not self._github_creds_set():
@@ -96,6 +121,14 @@ class GithubRepository(ResourceRepository, GitRepository):
                 pullrequest.errors += 1
                 pullrequest.submitted = False
                 pullrequest.message = "Failed read Github creds file. PR NOT submitted."
+                d = {
+                    "operation": "TranslationUpload",
+                    "results": "FAILURE",
+                    "reason": pullrequest.message,
+                    "status_code": None,
+                    "pullrequest_url": None
+                }
+                sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
                 return
 
         pullrequest_description = self._generate_pullrequest_description(pullrequest.description, list_commited_files)
@@ -111,6 +144,14 @@ class GithubRepository(ResourceRepository, GitRepository):
             pullrequest.errors += 1
             pullrequest.submitted = False
             pullrequest.message = "Failed to submit PR. Reason: '{}'.".format(e)
+            d = {
+                "operation": "TranslationUpload",
+                "results": "FAILURE",
+                "reason": pullrequest.message,
+                "status_code": r.status_code,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
         else:
             pass
@@ -121,6 +162,14 @@ class GithubRepository(ResourceRepository, GitRepository):
             pullrequest.message = "Failed to submit PR. Status code: '{}'.".format(r.status_code)
             sys.stderr.write("Response context...\n")
             sys.stderr.write(r.text)
+            d = {
+                "operation": "TranslationUpload",
+                "results": "FAILURE",
+                "reason": pullrequest.message,
+                "status_code": r.status_code,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
 
         pullrequest.submitted = True
@@ -133,6 +182,14 @@ class GithubRepository(ResourceRepository, GitRepository):
             sys.stderr.write("Failed read pullrequest result as json. Reason: '{}'.\n".format(e))
             sys.stderr.write("Response context...\n")
             sys.stderr.write(r.text)
+            d = {
+                "operation": "TranslationUpload",
+                "results": "FAILURE",
+                "reason": pullrequest.message,
+                "status_code": None,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
         else:
             pass
@@ -151,6 +208,14 @@ class GithubRepository(ResourceRepository, GitRepository):
             sys.stderr.write("Failed to obtain url, diff_url or number from PR response.\n")
             sys.stderr.write("Response context...\n")
             sys.stderr.write(r.text)
+            d = {
+                "operation": "TranslationUpload",
+                "results": "SUCCESS",
+                "reason": pullrequest.message,
+                "status_code": r.status_code,
+                "pullrequest_url": None
+            }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
             return
 
         if pullrequest.assignee:
@@ -160,6 +225,15 @@ class GithubRepository(ResourceRepository, GitRepository):
                 pullrequest.message = "Submitted PR with no assignee." 
         else:
             pullrequest.message = "Submitted PR with no assignee." 
+
+        d = {
+            "operation": "TranslationUpload",
+            "results": "SUCCESS",
+            "reason": pullrequest.message,
+            "status_code": r.status_code,
+            "pullrequest_url": pullrequest.url
+        }
+        sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
 
     def _update_assignee(self, issue_number, assignee):
         url = 'https://api.github.com/repos/' + self._repository_owner + '/' + self._repository_name + '/issues/' + str(issue_number)
