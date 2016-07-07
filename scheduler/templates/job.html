@@ -23,7 +23,6 @@
 
 
             <h2>Recent Results</h2>
-            [<a href="/run/{{job.id}}">Execute job now</a>]
 
             {% if job.class_name == 'ResourceUploaderJob' %}
             <table id="logs">
@@ -50,6 +49,18 @@
                 {% end %}
             </table>
             {% end %}
+            <hr>
+
+
+
+            <h2>Execute Job</h2>
+            <p>Job can be executed manually by clicking <i>Execute</i> buttion. It may take time to reflesh this page to show results of the execution.</p>
+            <p><b>CAUTION: Manual execution may introduce unexpected uploads against fixed uploading schedules.</b></p>
+            <form id="exec_job" action="/run/{{job.id}}" method="post">
+                <input type="hidden" name="job_id" value={{job.id}}>
+                <input type="submit" value="Execute">
+            </form>
+
         </div>
     </body>
 </html>

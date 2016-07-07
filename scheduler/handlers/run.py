@@ -6,7 +6,8 @@ import scheduler.jobstore.utils as jobstore
 import scheduler.logstore.utils as logstore
 
 class Handler(tornado.web.RequestHandler):
-    def get(self, job_id):
+    def post(self, arg):
+        job_id = self.get_argument('job_id', '')
         job = jobstore.find_job_by_id(job_id)
         if job:
             job.run()
