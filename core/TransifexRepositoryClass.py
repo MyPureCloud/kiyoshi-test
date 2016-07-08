@@ -190,24 +190,33 @@ class TransifexRepository(TranslationRepository):
             return download
 
         r = self._get_language_stats(pslug, rslug, language_code)
+        d = json.loads(r.text)
+        d['repository_name'] = repository_name
+        d['reosurce_path'] = resource_path
+        d['language_code'] = language_code
+        d['project_slug'] = pslug
+        d['resource_slug'] = rslug
+        d['operation'] = 'GetLanguageStats'
+        d['status_code'] = r.status_code
         if r:
+            d['results'] = 'SUCCESS'
             if r.status_code == 200 or r.status_code == 201:
                 if self._is_review_completed(r.json()):
                     self._download_translation(download, pslug, rslug, language_code)
                 else:
                     download.status = "Review not completed: {}, pslug: '{}', rslug: '{}'".format(language_code, pslug, rslug)   
             elif r.status_code == 404:
-                # TODO --- nofity translation owner so that s/he can add translation language to transifex (w/ assuming 
-                #          the language is a new scope for the project (b/c developer added it))
                 download.errors += 1
                 download.status = "Language not found: {}, pslug: '{}', rslug: '{}'".format(language_code, pslug, rslug)   
             else:
                 download.errors += 1
                 download.status = "Failed to obtain language status: {}. Code: {}, pslug: '{}', rslug: '{}'".format(language_code, r.status_code, pslug, rslug)
         else:
+            d['results'] = 'FAILURE'
             download.errors += 1
             download.status = "Failed to obtain language status: {}, pslug: '{}', rslug: '{}'.".format(language_code, pslug, rslug)
 
+        sys.stdout.write('LanguageStats=' + json.dumps(d) + '\n')
         return download
 
     def _download_translation(self, transifex_download_obj, project_slug, resource_slug, language_code):

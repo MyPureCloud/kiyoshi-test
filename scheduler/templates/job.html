@@ -45,7 +45,11 @@
                     {% set datetime = j.get_exec_datetime() %}
                     {% set status = j.get_exec_status() %}
                     {% set results = j.get_exec_result_string() %}
-                    <tr><td><a href="/log/{{param}}">{{status}}</a><td>{{datetime}}</td><td>{{results}}</td></td></tr>
+                    {% if 'https' in results %}
+                        <tr><td><a href="/log/{{param}}">{{status}}</a><td>{{datetime}}</td><td>{% raw results %}</td></td></tr>
+                    {% else %}
+                        <tr><td><a href="/log/{{param}}">{{status}}</a><td>{{datetime}}</td><td>{{results}}</td></td></tr>
+                    {% end %}
                 {% end %}
             </table>
             {% end %}

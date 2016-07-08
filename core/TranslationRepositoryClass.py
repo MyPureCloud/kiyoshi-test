@@ -49,7 +49,6 @@ class TranslationBundle:
                 translation.local_path = download.path
                 return 
             else:
-                sys.stdout.write("{}: {}\n".format(translation.language_code, download.status))
                 translation.local_path = None
         else:
             sys.stderr.write("{} Failed to download. Status code: {}\n".format(translation.language_code, download.status))

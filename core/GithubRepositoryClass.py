@@ -196,7 +196,7 @@ class GithubRepository(ResourceRepository, GitRepository):
 
         pullrequest.errors = 0
         for ent in j.items():
-            if ent[0] == 'url':
+            if ent[0] == 'html_url':
                 pullrequest.url = ent[1]
             elif ent[0] == 'diff_url':
                 pullrequest.diff_url =  ent[1]
