@@ -221,7 +221,7 @@ class BitbucketRepository(ResourceRepository, GitRepository):
 
         pullrequest.errors = 0
         pullrequest.number = j['id']
-        pullrequest.url = j['links']['self']['href']
+        pullrequest.url = j['links']['html']['href']
         pullrequest.diff_url = j['links']['diff']['href']
 
         if pullrequest.url == None or pullrequest.diff_url == None or pullrequest.number == None:
