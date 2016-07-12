@@ -43,22 +43,14 @@ class ScheduleServer():
         )
         self.http_server = tornado.httpserver.HTTPServer(application)
 
-        jobstores = {
-            'mongo': {'type': 'mongodb'},
-            'default': SQLAlchemyJobStore(url='sqlite:///jobs.sqlite')
-        }
         executors = {
             'default': {'type': 'threadpool', 'max_workers': 20},
             'processpool': ProcessPoolExecutor(max_workers=5)
         }
-        job_defaults = {
-            'coalesce': False,
-            'max_instances': 3
-        }
-        self.scheduler = TornadoScheduler()
 
+        self.scheduler = TornadoScheduler()
+        self.scheduler.configure(executors = executors)
         self._restore_jobs()
-        #self.scheduler.configure(jobstores=jobstores, executors=executors, job_defaults=job_defaults, timezone=utc)
         
         logger.info("pid: {}".format(os.getpid()))
         logger.info('Starting scheduler...')
@@ -72,7 +64,7 @@ class ScheduleServer():
             if not job.status == 'active':
                 continue
 
-            self.scheduler.add_job(job.run, 'cron', month = job.month, day = job.day, day_of_week = job.day_of_week, hour = job.hour, minute = job.minute, name = job.name, id = job.id)
+            self.scheduler.add_job(job.run, 'cron', month = job.month, day = job.day, day_of_week = job.day_of_week, hour = job.hour, minute = job.minute, name = job.name, id = job.id, misfire_grace_time = 600)
             logger.info("Restored: {} {} {} {} {} {}".format(job.class_name, job.status, job.name, job.resource_config_filename, job.translation_config_filename, job.id))
 
     # @classmethod

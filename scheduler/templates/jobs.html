@@ -19,7 +19,7 @@
                         {% set status = job.get_exec_status() %}
                         {% set datetime = job.get_exec_datetime() %}
                         {% set results = job.get_exec_result_string() %}
-                        <tr><td>{{status}}</td><td><a href="/job/{{param}}">{{job.name}}</a></td><td>{{job.description}}</td><td>{{datetime}}</td><td>{{results}}</td></tr>
+                        <tr><td>{{status}}</td><td><a href="/job/{{param}}">{{job.name}}</a></td><td>{{job.description}}</td><td>{{datetime}}</td><td>{% raw results %}</td></tr>
                     {% end %}
                 {% end %}
             </table>
