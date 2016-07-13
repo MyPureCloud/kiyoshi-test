@@ -179,18 +179,27 @@ class TransifexRepository(TranslationRepository):
         download = TransifexTranslationDownload()        
         pslug = self.generate_project_slug(self.config.get_project_name())
         if not pslug:
-            download.error += 1
+            download.errors += 1
             download.status = "Failed to generate project slug."
             return download
 
         rslug = self.generate_resource_slug([repository_name, resource_path])
         if not rslug:
-            download.error += 1
+            download.errors += 1
             download.status = "Failed to generate resource slug."
             return download
 
         r = self._get_language_stats(pslug, rslug, language_code)
-        d = json.loads(r.text)
+        try:
+            d = json.loads(r.text)
+        except ValueError as e:
+            sys.stderr.write("Failed to read language status as json. Reason: '{}'.\n".format(e))
+            sys.stderr.write("Response context...\n")
+            sys.stderr.write(r.text + '\n')
+            download.errors += 1
+            download.status = "Failed to obtain language stats."
+            return download
+
         d['repository_name'] = repository_name
         d['reosurce_path'] = resource_path
         d['language_code'] = language_code
