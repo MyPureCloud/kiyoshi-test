@@ -7,6 +7,7 @@ from core.GithubRepositoryClass import GithubRepository
 from core.BitbucketRepositoryClass import BitbucketRepository
 from core.TranslationRepositoryClass import TranslationRepositoryInitializationError
 from core.TransifexRepositoryClass import TransifexRepository
+from core.CrowdinRepositoryClass import CrowdinRepository
 
 
 def _upload_resource(translation_repository, resource_bundle, log_dir):
@@ -125,13 +126,26 @@ def _get_resource_repository(resource_config, log_dir):
         return None
 
 def _get_translation_repository(trans_config, log_dir):
-    try:
-        repo = TransifexRepository(trans_config, log_dir)
-    except TranslationRepositoryInitializationError as e:
-        sys.stderr.write("'{}'.\n".format(e))
-        return None
+    platform =  trans_config.get_project_platform()
+    if platform == 'transifex':
+        try:
+            repo = TransifexRepository(trans_config, log_dir)
+        except TranslationRepositoryInitializationError as e:
+            sys.stderr.write("'{}'.\n".format(e))
+            return None
+        else:
+            return repo
+    elif platform == 'crowdin':
+        try:
+            repo = CrowdinRepository(trans_config, log_dir)
+        except TranslationRepositoryInitializationError as e:
+            sys.stderr.write("'{}'.\n".format(e))
+            return None
+        else:
+            return repo
     else:
-        return repo
+        sys.stderr.write("Unknown translation platform: '{}'.\n".format(platform))
+        return None
 
 def main(argv):
     param = _check_args(argv)

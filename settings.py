@@ -32,18 +32,18 @@ LOG_RU_DIR = os.path.join(LOG_BASE_DIR, 'ru')
 # log directory for Translation Uploader.
 LOG_TU_DIR = os.path.join(LOG_BASE_DIR, 'tu')
 
-
 # log directory for auxiliary jobs.
 LOG_AUX_DIR = os.path.join(LOG_BASE_DIR, 'aux')
 
-# Bitbucket credential file.
+
+
+#
+# Credential files
+#
 BITBUCKET_CREDS_FILE = os.path.join(TPA_ROOT_DIR, 'bitbucket_creds.yaml')
-
-# Github credential file.
 GITHUB_CREDS_FILE = os.path.join(TPA_ROOT_DIR, 'github_creds.yaml')
-
-# Transifex credential file.
 TRANSIFEX_CREDS_FILE = os.path.join(TPA_ROOT_DIR, 'transifex_creds.yaml')
+CROWDIN_CREDS_FILE = os.path.join(TPA_ROOT_DIR, 'crowdin_creds.yaml')
 
 
 
