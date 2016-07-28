@@ -51,6 +51,6 @@ class Job(object):
         pass
 
     @abc.abstractmethod
-    def run(self, *args, **kwargs):
+    def run(self, **kwargs):
         pass
 

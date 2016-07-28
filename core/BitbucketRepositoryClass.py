@@ -57,8 +57,8 @@ class BitbucketRepository(ResourceRepository, GitRepository):
                 return None
         return GitRepository.import_translation(self, list_translation_import)
 
-    def import_bundles(self, translation_bundles):
-        ResourceRepository.add_import_entry(self, translation_bundles)
+    def import_bundles(self, translation_bundles, threshold):
+        ResourceRepository.add_import_entry(self, translation_bundles, threshold)
         if len(self._import_entries) == 0:
             sys.stderr.write("Nothing to import (_import_entries is empty).\n")
             return

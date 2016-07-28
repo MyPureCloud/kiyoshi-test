@@ -16,7 +16,7 @@ class ResourceUploaderJob(job.Job):
         self.translation_config_filename = job_dict['translation_config_file']
         self.execstats = []
 
-    def run(self, *args, **kwargs):
+    def run(self, **kwargs):
         logger.info("Executing job: class='ResourceUploaderJob' name='{}' id='{}'".format(self.name, self.id))
         destination = 'translation_repository'
         log_dir = logstore.create_log_dir(self)
@@ -29,8 +29,10 @@ class ResourceUploaderJob(job.Job):
         resource_config_path = os.path.join(settings.CONFIG_RESOURCE_DIR, self.resource_config_filename)
         translation_config_path = os.path.join(settings.CONFIG_TRANSLATION_DIR, self.translation_config_filename)
 
+        options = ''
+
         with open(log_path, 'w') as log, open(err_path, 'w') as err:
-            if call(['python', uploader_path, destination, resource_config_path, translation_config_path, log_dir],  stdout=log, stderr=err) == 0:
+            if call(['python', uploader_path, destination, resource_config_path, translation_config_path, log_dir, options],  stdout=log, stderr=err) == 0:
                 logger.info("Job status: Sucess: class='ResourceUploaderJob' name='{}' id='{}'\n".format(self.name, self.id))
             else:
                 logger.error("Job status: Fail: class='ResourceUploaderJob' name='{}' id='{}'\n".format(self.name, self.id))

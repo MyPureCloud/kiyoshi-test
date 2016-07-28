@@ -327,8 +327,8 @@ class GithubRepository(ResourceRepository, GitRepository):
     def get_resource_bundle(self):
         return ResourceRepository.get_resource_bundle(self, self)
 
-    def import_bundles(self, translation_bundles):
-        ResourceRepository.add_import_entry(self, translation_bundles)
+    def import_bundles(self, translation_bundles, threshold):
+        ResourceRepository.add_import_entry(self, translation_bundles, threshold)
         if len(self._import_entries) == 0:
             sys.stderr.write("Nothing to import (_import_entries is empty).\n")
             return

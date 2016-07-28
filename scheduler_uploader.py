@@ -30,7 +30,7 @@ def _upload_resource(translation_repository, resource_bundle, log_dir):
 
     return success
 
-def _upload_translation(resource_repository, resource_bundle, translation_repository, assignee, reviewers, log_dir):
+def _upload_translation(resource_repository, resource_bundle, translation_repository, assignee, reviewers, log_dir, options):
     success = True
     trans_bundles = []
     for resource in resource_bundle:
@@ -46,7 +46,7 @@ def _upload_translation(resource_repository, resource_bundle, translation_reposi
         else:
             sys.stdout.write("Skipped. No translation bundle for this resource.\n")
 
-    feature_branch_name = resource_repository.import_bundles(trans_bundles)
+    feature_branch_name = resource_repository.import_bundles(trans_bundles, options)
     if feature_branch_name:
         sys.stdout.write("Imports in branch: '{}'.\n".format(feature_branch_name))
         pr = PullRequest()
@@ -87,7 +87,18 @@ def _check_args(argv):
         sys.stderr.write("Log directory not found: '{}'.\n".format(argv[3]))
         return None
 
-    return {'upload_destination_string': argv[0], 'resource_config_file': argv[1], 'translation_config_file': argv[2], 'log_dir': argv[3]}
+    params = {'upload_destination_string': argv[0], 'resource_config_file': argv[1], 'translation_config_file': argv[2], 'log_dir': argv[3]}
+
+    # argv[4] is a string for optional parameters, such as option1:option2.
+    if argv[4] == 'ALL_LANG_PER_RESOURCE':
+        params['all_lang_per_resource'] = True
+    elif argv[4] == 'ANY_LANG_PER_RESOURCE':
+        params['all_lang_per_resource'] = False
+    else:
+        sys.stderr.write("Ignored unknown option string: '{}'.\n".format(argv[4]))
+        params['all_lang_per_resource'] = False
+
+    return params 
     
 def _get_resource_configuration(resource_config_file):
     config = ResourceConfiguration()
@@ -152,6 +163,9 @@ def main(argv):
     if not param:
         return
 
+    options = {}
+    options['all_lang_per_resource'] = param['all_lang_per_resource']
+
     sys.stdout.write("Start processing: '{}'...\n".format(param['resource_config_file']))
 
     resource_config = _get_resource_configuration(param['resource_config_file'])
@@ -179,7 +193,7 @@ def main(argv):
     elif param['upload_destination_string'] == 'resource_repository':
         reviewers = list(set(resource_config.get_pullrequest_reviewers() + trans_config.get_project_reviewers()))
         assignee = resource_config.get_pullrequest_assignee()
-        success = _upload_translation(resource_repo, resource_bundle, trans_repo, assignee, reviewers, param['log_dir'])
+        success = _upload_translation(resource_repo, resource_bundle, trans_repo, assignee, reviewers, param['log_dir'], options)
     else:
         pass
 

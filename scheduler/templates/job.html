@@ -60,11 +60,19 @@
             <h2>Execute Job</h2>
             <p>Job can be executed manually by clicking <i>Execute</i> buttion. It may take time to reflesh this page to show results of the execution.</p>
             <p><b>CAUTION: Manual execution may introduce unexpected uploads against fixed uploading schedules.</b></p>
-            <form id="exec_job" action="/run/{{job.id}}" method="post">
-                <input type="hidden" name="job_id" value={{job.id}}>
-                <input type="submit" value="Execute">
-            </form>
-
+            {% if job.class_name == 'TranslationUploaderJob' %}
+                <form id="exec_job" action="/run/{{job.id}}" method="post">
+                    <input type="radio" name="language_completion" value="all" checked> All languages need to be completed per resource.<br>
+                    <input type="radio" name="language_completion" value="any"> Any languages can be completed per resource.<br>
+                    <input type="hidden" name="job_id" value={{job.id}}>
+                    <input type="submit" value="Execute">
+                </form>
+            {% else %}
+                <form id="exec_job" action="/run/{{job.id}}" method="post">
+                    <input type="hidden" name="job_id" value={{job.id}}>
+                    <input type="submit" value="Execute">
+                </form>
+            {% end %}
         </div>
     </body>
 </html>

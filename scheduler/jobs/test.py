@@ -7,7 +7,7 @@ class TestJob(job.Job):
     def __init__(self, job_dict):
         super(TestJob, self).__init__(job_dict)
 
-    def run(self, *args, **kwargs):
+    def run(self, **kwargs):
         print(self.name)
 
     def update_loginfo(self, loginfo):

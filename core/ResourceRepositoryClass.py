@@ -113,16 +113,21 @@ class ResourceRepository(object):
                 self.config.get_resource_translation(resource_index))
         return r
 
+    def add_import_entry(self, translation_bundles, options):
+        if options['all_lang_per_resource']:
+            self._add_import_entry_with_all_languages(translation_bundles)
+        else:
+            self._add_import_entry(translation_bundles)
 
-    def add_import_entry(self, translation_bundles):
+    def _add_import_entry(self, translation_bundles):
         if len(translation_bundles) == 0: 
             return
         for bundle in translation_bundles:
-            sys.stdout.write("Handling bundle...\n")
+            sys.stdout.write("Handling bundle (threshold: any_lang_per_resource)...\n")
             for translation in bundle:
                 # ensure both translation path and local path are required in order to perfom importing a translation.
                 #
-                # if the translation path is not set (means it is not listed in resource config), it is considered as
+                # if the translation_path is not set (means it is not listed in resource config), it is considered as
                 # resource repository is not ready for importing the translation.
                 #
                 # currently, translation's local_path is set only when translation is completed AND translation path is
@@ -134,8 +139,37 @@ class ResourceRepository(object):
                     # TODO --- diplaying download status might be more informative.
                     sys.stdout.write("-'{}': Local path: '{}' ('{}').\n".format(translation.language_code, translation.local_path, translation.translation_path))
 
+    def _add_import_entry_with_all_languages(self, translation_bundles):
+        if len(translation_bundles) == 0:
+            return
+        for bundle in translation_bundles:
+            sys.stdout.write("Handling bundle (threshold: all_lang_per_resource)...\n")
+            incompleted_translation = 0
+            candidates = []
+            for translation in bundle:
+                # ensure both translation path and local path are required in order to perfom importing a translation.
+                #
+                # if the translation_path is not set (means it is not listed in resource config), it is considered as
+                # resource repository is not ready for importing the translation.
+                #
+                # currently, translation's local_path is set only when translation is completed AND translation path is
+                # set in resource config.
+                if translation.translation_path:
+                    if translation.local_path:
+                        candidates.append(GitFileImport(translation.translation_path, translation.local_path))
+                        sys.stdout.write("+'{}': Local path: '{}' ('{}').\n".format(translation.language_code, translation.local_path, translation.translation_path))
+                    else:
+                        incompleted_translation += 1
+                else:
+                    # TODO --- diplaying download status might be more informative.
+                    sys.stdout.write("-'{}': Local path: '{}' ('{}').\n".format(translation.language_code, translation.local_path, translation.translation_path))
+
+            if incompleted_translation == 0 and len(candidates) >= 1:
+                for candidate in candidates:
+                    self._import_entries.append(candidate)
+
     @abc.abstractmethod
-    def import_bundles(self, translation_bundles):
+    def import_bundles(self, translation_bundles, threshold):
         sys.stderr.write("BUG: Abstract method ResourceRepository.import_bundles() was called.\n")
         return None
 

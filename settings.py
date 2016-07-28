@@ -57,6 +57,10 @@ JOB_FILE = os.path.join(TPA_ROOT_DIR, 'jobs.json')
 # Uploader for  scheduler.
 SCHEDULER_UPLOADER = os.path.join(TPA_ROOT_DIR, 'translation-process-automation/scheduler_uploader.py')
 
+# Translation will be submitted via pullrequest when translations for all languages are completed.
+SUBMIT_PULLREQUEST_WHEN_ALL_LANGUAGES_COMPLETED_FOR_RESOURCE = False
+
+
 
 #
 # Tornado server
