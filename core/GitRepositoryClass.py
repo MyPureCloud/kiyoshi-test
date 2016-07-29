@@ -379,7 +379,7 @@ class GitRepository(object):
                     errors += 1
                     sys.stderr.write("Cannot find commit for: '{}'.\n".format(s))
                 if len(commit) == 1:
-                    if not self._revert_commit(commit, s):
+                    if not self._revert_commit(branch_name, commit[0], s):
                         errors += 1
                     else:
                         sys.stdout.write("Reverted: '{}'.\n".format(s))
@@ -403,14 +403,29 @@ class GitRepository(object):
             self._errors += errors
             return False
 
-    def _revert_commit(self, commit, file_path):
+    def _revert_commit(self, branch_name, commit, file_path):
+        prev_commit = commit.rstrip() + '~1'
         try:
-            git('-C', self._repository_name, 'checkout', commit, file_path)
+            git('-C', self._repository_name, 'checkout', prev_commit, file_path)
+            git('-C', self._repository_name, 'commit', '-m', 'Reverted.')
+        except ErrorReturnCode as e:
+            sys.stderr.write("{}\n".format(str(e)))
+            return False
+
+        # anything to commit ?
+        remaining_staged_files = []
+        self.get_staged_file(branch_name, remaining_staged_files)
+        if len(remaining_staged_files) < 1:
+            return True
+
+        try:
+            git('-C', self._repository_name, 'reset', '--soft', 'HEAD~2')
+            git('-C', self._repository_name, 'commit', '-m', 'Translation updates.')
         except ErrorReturnCode as e:
             sys.stderr.write("{}\n".format(str(e)))
             return False
         else:
-            return True 
+            return True
 
     # TODO --- return list
     def get_staged_file(self, branch_name, list_staged):
