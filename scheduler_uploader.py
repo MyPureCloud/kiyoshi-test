@@ -89,13 +89,16 @@ def _check_args(argv):
 
     params = {'upload_destination_string': argv[0], 'resource_config_file': argv[1], 'translation_config_file': argv[2], 'log_dir': argv[3]}
 
-    # argv[4] is a string for optional parameters, such as option1:option2.
+    # argv[4] is a string for optional parameters, such as option1:option2, or empty string.
     if argv[4] == 'ALL_LANG_PER_RESOURCE':
         params['all_lang_per_resource'] = True
     elif argv[4] == 'ANY_LANG_PER_RESOURCE':
         params['all_lang_per_resource'] = False
     else:
-        sys.stderr.write("Ignored unknown option string: '{}'.\n".format(argv[4]))
+        if argv[4] == '':
+            pass
+        else:
+            sys.stderr.write("Ignored unknown option string: '{}'.\n".format(argv[4]))
         params['all_lang_per_resource'] = False
 
     return params 
