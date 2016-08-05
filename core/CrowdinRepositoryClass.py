@@ -299,3 +299,6 @@ class CrowdinRepository(TranslationRepository):
                 crowdin_download_obj.path = os.path.abspath(download_path)
                 crowdin_download_obj.status = "Donloaded: {}".format(download_path)
 
+    def get_stats_project(self):
+        # NIY
+        return None

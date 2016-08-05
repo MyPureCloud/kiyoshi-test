@@ -279,3 +279,25 @@ class TransifexRepository(TranslationRepository):
                 transifex_download_obj.path = os.path.abspath(download_path)
                 transifex_download_obj.status = "Donloaded: {}".format(download_path)
 
+    def _get_stats_project_details(self):
+        if not (self._transifex_username and self._transifex_userpasswd):
+            if not self._set_transifex_creds():
+                return None
+
+        project_slug = self.generate_project_slug(self.config.get_project_name())
+        url = 'http://www.transifex.com/api/2/project/' + project_slug + '/?details'
+        try:
+            r = requests.get(url, auth=(self._transifex_username, self._transifex_userpasswd))
+        except ConnectionError as e:
+            sys.stderr.write("{}\n".format(e))
+            return None
+
+        if r.status_code == 200 or r.status_code == 201:
+            return r.text
+        else:
+            return None
+
+    def get_stats_project(self):
+        return self._get_stats_project_details()
+
+

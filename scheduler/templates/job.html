@@ -10,13 +10,16 @@
         <div id="body">
             [<a href="/">index</a>] | [<a href="/jobs">jobs</a>]
             <h1>{{job.name}}</h1>
+
+            {% set s = '{}:{}'.format(job.resource_config_filename, job.translation_config_filename) %}
+            {% set param = urllib.quote(s, safe='') %}
             <h2>Job Details</h2>
             <table>
                 <tr><td>Name</td><td>{{job.name}}</td></tr>
                 <tr><td>Description</td><td>{{job.description}}</td></tr>
                 <tr><td>Status</td><td>{{job.status}}</td></tr>
                 <tr><td>Scheduled at</td><td>n/a</td></tr>
-                <tr><td>Resource Config File</td><td>{{job.resource_config_filename}}</td></tr>
+                <tr><td>Resource Config File</td><td>{{job.resource_config_filename}} (<a href="/resource/{{param}}">view slugs</a>)</td></tr>
                 <tr><td>Translation Config File</td><td>{{job.translation_config_filename}}</td></tr>
             </table>
             <hr>

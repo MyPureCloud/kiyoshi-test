@@ -21,6 +21,7 @@ from scheduler.handlers import jobs as jobs_handler
 from scheduler.handlers import run as run_handler 
 from scheduler.handlers import logs as logs_handler 
 from scheduler.handlers import log as log_handler 
+from scheduler.handlers import resource as resource_handler 
 from scheduler.jobs import test as test_job, resource_uploader as resource_uploader_job, translation_uploader as translation_uploader_job
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,8 @@ class ScheduleServer():
                     (r'/jobs', jobs_handler.Handler),
                     (r'/run/(.+)', run_handler.Handler),
                     (r'/logs', logs_handler.Handler),
-                    (r'/log/(.+)', log_handler.Handler)
+                    (r'/log/(.+)', log_handler.Handler),
+                    (r'/resource/(.+)', resource_handler.Handler)
                 ],
                 template_path = os.path.join(os.path.dirname(__file__), '..', 'templates'),
                 static_path = os.path.join(os.path.dirname(__file__), '..', 'static')
@@ -56,7 +58,6 @@ class ScheduleServer():
         logger.info('Starting scheduler...')
         self.scheduler.start()
         logger.info(self.scheduler.print_jobs())
-
 
     def _restore_jobs(self):
         self._jobs = jobstore.read_jobs()

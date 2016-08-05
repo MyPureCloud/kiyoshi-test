@@ -81,3 +81,8 @@ class TranslationRepository(object):
         sys.stderr.write("BUG: Abstract method TranslationRepository.import_resource() was called.\n")
         return False
 
+    @abc.abstractmethod
+    def get_stats_project(self):
+        sys.stderr.write("BUG: Abstract method TranslationRepository.get_stats_project() was called.\n")
+        return False
+
