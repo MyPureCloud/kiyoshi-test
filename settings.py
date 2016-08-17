@@ -37,6 +37,12 @@ LOG_AUX_DIR = os.path.join(LOG_BASE_DIR, 'aux')
 
 
 
+# Cache Directory
+#
+CACHE_DIR = os.path.join(TPA_ROOT_DIR, 'cache')
+
+
+
 #
 # Credential files
 #

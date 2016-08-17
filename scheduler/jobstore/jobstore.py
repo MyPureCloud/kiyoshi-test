@@ -6,7 +6,7 @@ import settings
 from scheduler.jobs.test import TestJob
 from scheduler.jobs.resource_uploader import ResourceUploaderJob
 from scheduler.jobs.translation_uploader import TranslationUploaderJob 
-import scheduler.logstore.utils as logstore
+import scheduler.logstore.logstore as logstore
 
 logger = logging.getLogger(__name__)
 

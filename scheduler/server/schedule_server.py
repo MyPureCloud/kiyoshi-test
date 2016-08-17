@@ -14,7 +14,10 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ProcessPoolExecutor
 
 import settings
-import scheduler.jobstore.utils as jobstore
+import scheduler.jobstore.jobstore as jobstore
+import scheduler.logstore.logstore as logstore
+import scheduler.transifex.transifex_utils as transifex
+
 from scheduler.handlers import main as main_handler
 from scheduler.handlers import job as job_handler 
 from scheduler.handlers import jobs as jobs_handler 
@@ -22,6 +25,9 @@ from scheduler.handlers import run as run_handler
 from scheduler.handlers import logs as logs_handler 
 from scheduler.handlers import log as log_handler 
 from scheduler.handlers import resource as resource_handler 
+from scheduler.handlers import transprojects as transprojects_handler 
+from scheduler.handlers import transproject as transproject_handler 
+from scheduler.handlers import transifexresource as transifexresource_handler 
 from scheduler.jobs import test as test_job, resource_uploader as resource_uploader_job, translation_uploader as translation_uploader_job
 
 logger = logging.getLogger(__name__)
@@ -38,7 +44,10 @@ class ScheduleServer():
                     (r'/run/(.+)', run_handler.Handler),
                     (r'/logs', logs_handler.Handler),
                     (r'/log/(.+)', log_handler.Handler),
-                    (r'/resource/(.+)', resource_handler.Handler)
+                    (r'/resource/(.+)', resource_handler.Handler),
+                    (r'/transprojects', transprojects_handler.Handler),
+                    (r'/transproject/(.+)', transproject_handler.Handler),
+                    (r'/transifexresource/(.+)', transifexresource_handler.Handler)
                 ],
                 template_path = os.path.join(os.path.dirname(__file__), '..', 'templates'),
                 static_path = os.path.join(os.path.dirname(__file__), '..', 'static')
@@ -52,10 +61,15 @@ class ScheduleServer():
 
         self.scheduler = TornadoScheduler()
         self.scheduler.configure(executors = executors)
-        self._restore_jobs()
-        
+
+        self._initialized = True
         logger.info("pid: {}".format(os.getpid()))
-        logger.info('Starting scheduler...')
+        if not logstore.initialize():
+            self._initialized = False
+        if not transifex.initialize():
+            self._initialized = False
+
+        self._restore_jobs()
         self.scheduler.start()
         logger.info(self.scheduler.print_jobs())
 
@@ -70,6 +84,10 @@ class ScheduleServer():
 
     # @classmethod
     def start(self):
+        if not self._initialized:
+            logger.error("Scheduler not started due to initialization errors.")
+            return
+
         signal.signal(signal.SIGINT, self._signal_handler)
         self.http_server.listen(settings.HTTP_PORT)
         tornado.ioloop.IOLoop.current().start()

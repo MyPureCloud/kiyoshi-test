@@ -16,6 +16,42 @@ class LogInfo:
         self.err_path = None
         self.err_size = -1
 
+def _ensure_dir(path):
+    if os.path.isdir(path):
+        return True
+    else:
+        logger.error("Directory does not exist: '{}'.".format(path))
+        return False
+
+def _setup_dir(path):
+    if os.path.isdir(path):
+        return True
+    else:
+        try:
+            os.makedirs(path)
+        except OSError as e:
+            logger.error("Failed to create directory: '{}'. Reason: {}".format(path, e))
+            return False
+        else:
+            if os.path.isdir(path):
+                return True
+            else:
+                logger.error("Created directory does not exist: '{}'.".format(path))
+                return False
+
+def initialize():
+    logger.info("Initializing logstore...")
+    if not _setup_dir(settings.LOG_BASE_DIR):
+        return False
+    if not _setup_dir(settings.LOG_RU_DIR):
+        return False
+    if not _setup_dir(settings.LOG_TU_DIR):
+        return False
+    if not _setup_dir(settings.LOG_AUX_DIR):
+        return False
+
+    return True
+
 def create_log_dir(job):
     if job.class_name == 'ResourceUploaderJob':
         base_log_dir= settings.LOG_RU_DIR

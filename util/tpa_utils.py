@@ -30,7 +30,7 @@ def get_translation_project_stats(translation_config_filename):
     result = trans_repo.get_stats_project()
     if not result:
         return stats
-    logger.info(result)
+
     try:
         d = json.loads(result)
         stats['project_name'] = d['name']

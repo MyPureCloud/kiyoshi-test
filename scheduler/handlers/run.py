@@ -2,8 +2,8 @@ import os, sys
 import urllib
 import tornado.web
 
-import scheduler.jobstore.utils as jobstore
-import scheduler.logstore.utils as logstore
+import scheduler.jobstore.jobstore as jobstore
+import scheduler.logstore.logstore as logstore
 
 class Handler(tornado.web.RequestHandler):
     def post(self, arg):

@@ -1,7 +1,7 @@
 import sys, os
 import json
 
-import util.utils as utils
+import util.tpa_utils as utils
 
 def _check_args(argv):
     # 1st arg: upload destination string.

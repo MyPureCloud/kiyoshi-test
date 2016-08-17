@@ -2,7 +2,7 @@ import os
 import tornado.web
 
 import settings
-import scheduler.logstore.utils as logstore
+import scheduler.logstore.logstore as logstore
 
 class Handler(tornado.web.RequestHandler):
     def get(self):

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+{% import urllib %}
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>Project</title>
+    </head>
+    <body>
+        <div id="body">
+            [<a href="/">index</a>] | [<a href="/transprojects">projects</a>]
+            {% if project %}
+                <h1>{{project['name']}} Project</h1>
+                <h2>Project Description</h2>
+                <p>{{project['description']}}</p>
+
+                <h2>Resources</h2>
+                <p>
+                <img src='../static/ic_warning_black_24dp_1x.png'> <i>Retrieving huge number of string data from Transifex takes time.</i>
+                </p>
+                <p>
+                <table id="logs">
+                    <tr><th>Name</th><th>Last Update</th><th>Strings</th><th>Words</th></tr>
+                    {% if resources %}
+                        {% for r in resources %}
+                        {% set s = '{}:{}:{}:{}'.format(r['project_slug'], r['slug'], project['name'], r['name']) %}
+                            {% set param = urllib.quote(s, safe='') %}
+                            <tr><td><a href="/transifexresource/{{param}}">{{r['name']}}</a></td><td>{{r['last_update']}}</td><td>{{r['total_entities']}}</td><td>{{r['wordcount']}}</td></tr>
+                        {% end %}
+                    {% end %}
+                </table>
+                </p>
+            {% else %}
+                <p>No project data supplied.</p>
+            {% end %}
+        </div>
+    </body>
+</html>
+                                       

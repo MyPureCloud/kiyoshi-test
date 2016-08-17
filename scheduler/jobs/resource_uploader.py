@@ -4,7 +4,7 @@ from subprocess import call
 import logging
 
 import settings
-import scheduler.logstore.utils as logstore
+import scheduler.logstore.logstore as logstore
 from scheduler.jobs import job
 
 logger = logging.getLogger(__name__)
