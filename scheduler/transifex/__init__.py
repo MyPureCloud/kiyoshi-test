@@ -1,3 +1,0 @@
-""" Transifex utility 
-"""
-

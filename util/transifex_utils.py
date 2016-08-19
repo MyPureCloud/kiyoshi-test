@@ -4,6 +4,7 @@ import logging
 
 import settings
 import core.transifex.transifex_api as transifex
+from core.TransifexCredsConfigurationClass import TransifexCredsConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +40,43 @@ def _setup_cache_dir():
         if not _setup_dir(transifex_projects_dir):
             return False
 
-    # TODO - crowdin dirs
-
     return True
 
 def initialize():
     logger.info("Initializing transifex cache...")
+    global creds
+    creds = {} 
     return _setup_cache_dir()
+
+def _get_transifex_creds_file_path():
+    return settings.TRANSIFEX_CREDS_FILE
+
+def _read_transifex_creds(creds_file_path):
+    if not os.path.isfile(creds_file_path):
+        sys.stderr.write("File not found: {}.\n".format(creds_file_path))
+        return {}
+
+    t = TransifexCredsConfiguration()
+    if not t.parse(creds_file_path):
+        sys.stderr.write("Failed to parse: {}\n".format(creds_file_path))
+        return {}
+    else:
+        return {'username': t.get_username(), 'userpasswd': t.get_userpasswd()}
+        
+def get_transifex_creds(non_default_creds_file_path=None):
+    """ Return default Transifex creds which are defined in settings file, or
+        ones read from sepecified creds_file_path.
+        Return empty dict, when none of above is met.
+    """
+    if creds:
+        return creds
+
+    if non_default_creds_file_path:
+        creds_file_path = non_default_creds_file_path
+    else:
+        creds_file_path = _get_transifex_creds_file_path()
+
+    return _read_transifex_creds(creds_file_path)
 
 def _get_project_dir(project_slug):
     return os.path.join(_get_projects_dir(), project_slug)
@@ -93,7 +124,8 @@ def get_projects():
 def create_projects_cache():
     """ Return newly cached Transifex projects data, None if it fails to fetch the data.
     """
-    response_text = transifex.get_projects()
+    creds = get_transifex_creds()
+    response_text = transifex.get_projects(creds)
     if not response_text:
         return None
 
@@ -141,7 +173,8 @@ def get_project_details(project_slug):
 def create_project_details_cache(project_slug):
     """ Return newly cached Transifex project details data, None if it fails to fetch the data.
     """
-    response_text = transifex.get_project_details(project_slug)
+    creds = get_transifex_creds()
+    response_text = transifex.get_project_details(project_slug, creds)
     if not response_text:
         return None
 
@@ -197,9 +230,10 @@ def create_resources_details_cache(project_slug):
     if not project:
         return None
 
+    creds = get_transifex_creds()
     resources = []
     for r in project['resources']:
-        response_text = transifex.get_resource_details(project['slug'], r['slug'])
+        response_text = transifex.get_resource_details(project['slug'], r['slug'], creds)
         if response_text:
             try:
                 resource = json.loads(response_text)
@@ -262,7 +296,8 @@ def get_translation_strings_details(project_slug, resource_slug, language_code):
 def create_translation_strings_details_cache(project_slug, resource_slug, language_code):
     """ Return newly cached list of Transifex translation strings data. None if it fails to fetch the data.
     """
-    response_text = transifex.get_translation_strings_details(project_slug, resource_slug, language_code)
+    creds = get_transifex_creds()
+    response_text = transifex.get_translation_strings_details(project_slug, resource_slug, language_code, creds)
     if not response_text:
         return None
 
@@ -321,13 +356,14 @@ def create_source_strings_details_cache(project_slug, resource_slug):
         Source string details is not just source string details. It is combination of en-US translation
         string details and source string details.
     """
+    creds = get_transifex_creds()
     strings = create_translation_strings_details_cache(project_slug, resource_slug, 'en-US')
     if not strings:
         return None
 
     results = []
     for s in strings:
-        response_text = transifex.get_source_string_details(project_slug, resource_slug, s['key'])
+        response_text = transifex.get_source_string_details(project_slug, resource_slug, s['key'], creds)
         if response_text:
             try:
                 d = json.loads(response_text)

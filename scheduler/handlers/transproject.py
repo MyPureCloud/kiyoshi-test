@@ -3,7 +3,7 @@ import json
 import urllib
 import tornado.web
 
-import scheduler.transifex.transifex_utils as transifex
+import util.transifex_utils as transifex
 
 class Handler(tornado.web.RequestHandler):
     def _get_transifex_project_details(self, project_slug):

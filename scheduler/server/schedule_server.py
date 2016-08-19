@@ -16,7 +16,7 @@ from apscheduler.executors.pool import ProcessPoolExecutor
 import settings
 import scheduler.jobstore.jobstore as jobstore
 import scheduler.logstore.logstore as logstore
-import scheduler.transifex.transifex_utils as transifex
+import util.transifex_utils as transifex
 
 from scheduler.handlers import main as main_handler
 from scheduler.handlers import job as job_handler 
@@ -62,8 +62,9 @@ class ScheduleServer():
         self.scheduler = TornadoScheduler()
         self.scheduler.configure(executors = executors)
 
-        self._initialized = True
         logger.info("pid: {}".format(os.getpid()))
+
+        self._initialized = True
         if not logstore.initialize():
             self._initialized = False
         if not transifex.initialize():

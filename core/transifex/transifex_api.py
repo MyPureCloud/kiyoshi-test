@@ -3,23 +3,7 @@ import requests
 from requests.exceptions import ConnectionError
 from hashlib import md5
 
-import settings
-from core.TransifexCredsConfigurationClass import TransifexCredsConfiguration
-
-def get_transifex_creds():
-    if not os.path.isfile(settings.TRANSIFEX_CREDS_FILE):
-        sys.stderr.write("File not found: {}.\n".format(settings.TRANSIFEX_CREDS_FILE))
-        return None
-
-    t = TransifexCredsConfiguration()
-    if not t.parse(settings.TRANSIFEX_CREDS_FILE):
-        sys.stderr.write("Failed to parse: {}\n".format(settings.TRANSIFEX_CREDS_FILE))
-        return None
-    else:
-        return {'username': t.get_username(), 'userpasswd': t.get_userpasswd()}
-
-def get_projects():
-    creds = get_transifex_creds()
+def get_projects(creds):
     if not creds:
         return None
 
@@ -37,8 +21,7 @@ def get_projects():
 
         return r.text
 
-def get_project_details(project_slug):
-    creds = get_transifex_creds()
+def get_project_details(project_slug, creds):
     if not creds:
         return None
 
@@ -56,8 +39,7 @@ def get_project_details(project_slug):
 
         return r.text
 
-def get_resources(project_slug):
-    creds = get_transifex_creds()
+def get_resources(project_slug, creds):
     if not creds:
         return None
 
@@ -75,8 +57,7 @@ def get_resources(project_slug):
 
         return r.text
 
-def get_resource_details(project_slug, resource_slug):
-    creds = get_transifex_creds()
+def get_resource_details(project_slug, resource_slug, creds):
     if not creds:
         return None
 
@@ -94,8 +75,7 @@ def get_resource_details(project_slug, resource_slug):
 
         return r.text
 
-def get_translation_strings(project_slug, resource_slug, language_code):
-    creds = get_transifex_creds()
+def get_translation_strings(project_slug, resource_slug, language_code, creds):
     if not creds:
         return None
 
@@ -113,8 +93,7 @@ def get_translation_strings(project_slug, resource_slug, language_code):
 
         return r.text
 
-def get_translation_strings_details(project_slug, resource_slug, language_code):
-    creds = get_transifex_creds()
+def get_translation_strings_details(project_slug, resource_slug, language_code, creds):
     if not creds:
         return None
 
@@ -135,8 +114,7 @@ def get_translation_strings_details(project_slug, resource_slug, language_code):
 def get_string_hash(source_string_key):
     return md5(':'.join([source_string_key, ""]).encode('utf-8')).hexdigest()
 
-def get_source_string_details(project_slug, resource_slug, source_string_key):
-    creds = get_transifex_creds()
+def get_source_string_details(project_slug, resource_slug, source_string_key, creds):
     if not creds:
         return None
 

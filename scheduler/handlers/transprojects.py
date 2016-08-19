@@ -4,7 +4,7 @@ import logging
 import tornado.web
 
 import settings
-import scheduler.transifex.transifex_utils as transifex
+import util.transifex_utils as transifex
 
 logger = logging.getLogger(__name__)
 
