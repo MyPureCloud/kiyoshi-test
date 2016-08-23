@@ -230,7 +230,14 @@ def upload_translation(resource_repository, resource_bundle, translation_reposit
                 success = False
                 sys.stderr.write("{}\n".format(pr.message))
     else:
-        sys.stdout.write("(No pull request submitted.)\n")
+        d = {
+            "operation": "TranslationUpload",
+            "results": "SUCCESS",
+            "reason": "No changes. No pull request submitted.",
+            "status_code": None,
+            "pullrequest_url": None
+        }
+        sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
 
     return success
 
