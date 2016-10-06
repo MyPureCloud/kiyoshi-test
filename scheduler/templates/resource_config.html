@@ -1,0 +1,69 @@
+{# Displays details for a resoruce configuration file.                  #}
+{# Expecting parameters                                                 #}
+{#  confing: ResourceConfiguration tuple. (None is not expected)        #}
+<!DOCTYPE html>
+{% import urllib %}
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>TPA Job Details</title>
+    </head>
+    <body>
+        <div id="body">
+            [<a href="/">index</a>] | [<a href="/resource_configs">resource configurations</a>]
+
+            <h1>Resource Configuration</h1>
+            <h2>{{config.filename}}</h2>
+            <p>
+            <table id="logs">
+                <tr><th>Parsed</th><td>{{config.parsed}}</td></tr>
+            </table>
+            </p>
+            <h3>Options</h3>
+            <p>
+            <table id="logs">
+                <tr><th>Name</th><th>Value</th></tr>
+                {% for option in config.options %}
+                    <tr><td>{{option.name}}</td><td>{{option.value}}</td></tr>
+                {% end %}
+            </table>
+            </p>
+            <h3>Pull Request Reviewers ({{len(config.pullrequest.reviewers)}})</h3>
+            <p>
+            <table id="logs">
+                {% for reviewer in config.pullrequest.reviewers %}
+                    <tr><th>Name</th><td>{{reviewer}}</td></tr>
+                {% end %}
+            </table>
+            </p>
+            <h3>Repository</h3>
+            <p>
+            <table id="logs">
+                <tr><th>URL</th><td>{{config.repository_url}}</td></tr>
+                <tr><th>Platform</th><td>{{config.repository_platform}}</td></tr>
+                <tr><th>Owner/Organization</th><td>{{config.repository_owner}}</td></tr>
+                <tr><th>Name</th><td>{{config.repository_name}}</td></tr>
+                <tr><th>Branch</th><td>{{config.repository_branch}}</td></tr>
+            </table>
+            </p>
+            <h3>Resource Files ({{config.repository_resource_len}})</h3>
+            <p>
+            <table id="logs">
+                <tr><th>Path</th><th>Localized Files</th></tr>
+                {% for resource in config.resources %}
+                <tr><td>{{resource.path}}</td>
+                    <td>
+                        <ol>
+                        {% for translation in resource.translations %}
+                            <li>{{translation.path}} ({{translation.language_code}})</li>
+                        {% end %}
+                        </ol>
+                    </td>
+                {% end %}
+            </table>
+            </p>
+        </div>
+    </body>
+</html>
+                                       

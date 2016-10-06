@@ -8,21 +8,10 @@
     </head>
     <body>
         <div id="body">
-            [<a href="/">index</a>] | [<a href="/jobs">jobs</a>]
-            <h1>TPA Logs</h1>
-            <h2>TU</h2>
-            <table id="logs">
-                <tr><th>Datetime</th><th>Config</th><th>Log</th></tr>
-                {% for entry in tu_entries %}
-                    {% set param = urllib.quote(entry.log_dir, safe='') %}
-                    {% if entry.err_size <= 0 %}
-                        <tr><td>{{entry.datetime}}</td><td>{{entry.config_name}}</td><td><a href="/log/{{param}}">Info</a></td></tr>
-                    {% else %}
-                        <tr><td>{{entry.datetime}}</td><td>{{entry.config_name}}</td><td><a href="/log/{{param}}">Error + Info</a></td></tr>
-                    {% end %}
-                {% end %}
-            </table>
-            <h2>RU</h2>
+            [<a href="/">index</a>]
+            <h1>Logs</h1>
+            <h2>Resource Uploader Logs</h2>
+            <p>
             <table id="logs">
                 <tr><th>Datetime</th><th>Config</th><th>Status</th></tr>
                 {% for entry in ru_entries %}
@@ -34,6 +23,22 @@
                     {% end %}
                 {% end %}
             </table>
+            </p>
+            <hr>
+            <h2>Translation Uploader Logs</h2>
+            <p>
+            <table id="logs">
+                <tr><th>Datetime</th><th>Config</th><th>Log</th></tr>
+                {% for entry in tu_entries %}
+                    {% set param = urllib.quote(entry.log_dir, safe='') %}
+                    {% if entry.err_size <= 0 %}
+                        <tr><td>{{entry.datetime}}</td><td>{{entry.config_name}}</td><td><a href="/log/{{param}}">Info</a></td></tr>
+                    {% else %}
+                        <tr><td>{{entry.datetime}}</td><td>{{entry.config_name}}</td><td><a href="/log/{{param}}">Error + Info</a></td></tr>
+                    {% end %}
+                {% end %}
+            </table>
+            </p>
         </div>
     </body>
 </html>

@@ -34,20 +34,8 @@ class TranslationUploaderJob(job.Job):
         translation_config_path = os.path.join(settings.CONFIG_TRANSLATION_DIR, self.translation_config_filename)
         uploader_path = settings.SCHEDULER_UPLOADER
 
-        options = 'ANY_LANG_PER_RESOURCE'
-        if 'all_lang_per_resource' in kwargs:
-            if kwargs['all_lang_per_resource']:
-                options = 'ALL_LANG_PER_RESOURCE'
-            else:
-                pass 
-        else:
-            if settings.SUBMIT_PULLREQUEST_WHEN_ALL_LANGUAGES_COMPLETED_FOR_RESOURCE:
-                options = 'ALL_LANG_PER_RESOURCE'
-            else:
-                pass 
-
         with open(log_path, 'w') as log, open(err_path, 'w') as err:
-            if call(['python', uploader_path, destination, resource_config_path, translation_config_path, log_dir, options],  stdout=log, stderr=err) == 0:
+            if call(['python', uploader_path, destination, resource_config_path, translation_config_path, log_dir],  stdout=log, stderr=err) == 0:
                 logger.info("Job status: Sucess: class='TranslationUploaderJob' name='{}' id='{}'\n".format(self.name, self.id))
             else:
                 logger.error("Job status: Fail: class='TranslationUploaderJob' name='{}' id='{}'\n".format(self.name, self.id))
@@ -68,7 +56,7 @@ class TranslationUploaderJob(job.Job):
         return os.path.splitext(os.path.basename(self.resource_config_filename))[0]
 
     def _update_execstats(self):
-        if self.loginfo:
+        if self.loginfo and self.loginfo.log_path:
             if os.path.isfile(self.loginfo.log_path):
                 with open(self.loginfo.log_path) as fi:
                     lines = fi.readlines()

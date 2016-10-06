@@ -1,47 +1,27 @@
 import os.path
 
 # root directory where tpa script, configuration and log files reside.
-TPA_ROOT_DIR = '/home/kiyoshi/tpa-testing---scheduler'
-
-# tpa core scrpt directory.
-CORE_DIR = os.path.join(TPA_ROOT_DIR, 'translation-process-automation/tpa/core')
-
-
+TPA_ROOT_DIR = '/home/kiyoshi/tpa-testing'
 
 #
 # Configuration Directories
 #
 CONFIG_BASE_DIR = os.path.join(TPA_ROOT_DIR, 'config')
-
-# configuration directory for resource configuration files.
 CONFIG_RESOURCE_DIR = os.path.join(CONFIG_BASE_DIR, 'resource')
-
-# configuration directroy for translation configuration files.
 CONFIG_TRANSLATION_DIR = os.path.join(CONFIG_BASE_DIR, 'translation')
-
-
 
 #
 # Log Directories
 #
 LOG_BASE_DIR = os.path.join(TPA_ROOT_DIR, 'logs')
-
-# log directory for Resource Uploader.
 LOG_RU_DIR = os.path.join(LOG_BASE_DIR, 'ru')
-
-# log directory for Translation Uploader.
 LOG_TU_DIR = os.path.join(LOG_BASE_DIR, 'tu')
-
-# log directory for auxiliary jobs.
 LOG_AUX_DIR = os.path.join(LOG_BASE_DIR, 'aux')
 
-
-
+#
 # Cache Directory
 #
 CACHE_DIR = os.path.join(TPA_ROOT_DIR, 'cache')
-
-
 
 #
 # Credential files
@@ -51,22 +31,13 @@ GITHUB_CREDS_FILE = os.path.join(TPA_ROOT_DIR, 'github_creds.yaml')
 TRANSIFEX_CREDS_FILE = os.path.join(TPA_ROOT_DIR, 'transifex_creds.yaml')
 CROWDIN_CREDS_FILE = os.path.join(TPA_ROOT_DIR, 'crowdin_creds.yaml')
 
-
-
 #
 # Scheduler job File
 #
 JOB_FILE = os.path.join(TPA_ROOT_DIR, 'jobs.json')
 
-
-
 # Uploader for  scheduler.
-SCHEDULER_UPLOADER = os.path.join(TPA_ROOT_DIR, 'translation-process-automation/scheduler_uploader.py')
-
-# Translation will be submitted via pullrequest when translations for all languages are completed.
-SUBMIT_PULLREQUEST_WHEN_ALL_LANGUAGES_COMPLETED_FOR_RESOURCE = False
-
-
+SCHEDULER_UPLOADER = os.path.join(TPA_ROOT_DIR, 'translation-process-automation/uploader_cmd.py')
 
 #
 # Tornado server

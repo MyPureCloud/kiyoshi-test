@@ -1,3 +1,7 @@
+{# Displays details for a job with recent execution results.                            #}
+{# Expecting parameters                                                                 #}
+{#  job: A Job. (None is not expected)                                                  #}
+{#  runjobs: A list of most recent executed Jobs, or empty list (None is not expected). #}
 <!DOCTYPE html>
 {% import urllib %}
 <html>
@@ -8,25 +12,26 @@
     </head>
     <body>
         <div id="body">
-            [<a href="/">index</a>] | [<a href="/jobs">jobs</a>]
-            <h1>{{job.name}}</h1>
-
+            [<a href="/">index</a>]
+            <h1>Job</h1>
             {% set s = '{}:{}'.format(job.resource_config_filename, job.translation_config_filename) %}
             {% set param = urllib.quote(s, safe='') %}
-            <h2>Job Details</h2>
-            <table>
-                <tr><td>Name</td><td>{{job.name}}</td></tr>
-                <tr><td>Description</td><td>{{job.description}}</td></tr>
-                <tr><td>Status</td><td>{{job.status}}</td></tr>
-                <tr><td>Scheduled at</td><td>n/a</td></tr>
-                <tr><td>Resource Config File</td><td>{{job.resource_config_filename}} (<a href="/resource/{{param}}">view slugs</a>)</td></tr>
-                <tr><td>Translation Config File</td><td>{{job.translation_config_filename}}</td></tr>
+            <h2>Outline</h2>
+            <p>
+            <table id="logs">
+                <tr><th>Name</th><td>{{job.name}}</td></tr>
+                <tr><th>Description</th><td>{{job.description}}</td></tr>
+                <tr><th>Status</th><td>{{job.status}}</td></tr>
+                <tr><th>Scheduled at</th><td>n/a</td></tr>
+                {% set param2 = urllib.quote(job.resource_config_filename, safe='') %}
+                <tr><th>Resource Config File</th><td><a href="/resource_config/{{param2}}">{{job.resource_config_filename}}</a> (<a href="/transifex_slugs/{{param}}">view slugs</a>)</td></tr>
+                <tr><th>Translation Config File</th><td>{{job.translation_config_filename}}</td></tr>
             </table>
+            </p>
             <hr>
 
-
             <h2>Recent Results</h2>
-
+            <p>
             {% if job.class_name == 'ResourceUploaderJob' %}
             <table id="logs">
                 <tr><th>Status</th><th>Datetime</th><th>Results</th></tr>
@@ -56,17 +61,16 @@
                 {% end %}
             </table>
             {% end %}
+            </p>
             <hr>
-
-
 
             <h2>Execute Job</h2>
             <p>Job can be executed manually by clicking <i>Execute</i> buttion. It may take time to reflesh this page to show results of the execution.</p>
             <p><b>CAUTION: Manual execution may introduce unexpected uploads against fixed uploading schedules.</b></p>
             {% if job.class_name == 'TranslationUploaderJob' %}
                 <form id="exec_job" action="/run/{{job.id}}" method="post">
-                    <input type="radio" name="language_completion" value="all" checked> All languages need to be completed per resource.<br>
-                    <input type="radio" name="language_completion" value="any"> Any languages can be completed per resource.<br>
+                    <input type="radio" name="language_completion" value="all" disabled> All languages need to be completed per resource.<br>
+                    <input type="radio" name="language_completion" value="any" disabled> Any languages can be completed per resource.<br>
                     <input type="hidden" name="job_id" value={{job.id}}>
                     <input type="submit" value="Execute">
                 </form>

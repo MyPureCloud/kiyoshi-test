@@ -1,0 +1,53 @@
+{# Displays slugs for each resource in a Transifex project.     #}
+{# Expecting parameters         #}
+{#  resource_config_filename:#}
+{#  translation_slugs:#}
+{#  resource_slugs:#}
+{#  stats:#}
+<!DOCTYPE html>
+{% import urllib %}
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>TPA Slugs</title>
+    </head>
+    <body>
+        <div id="body">
+            [<a href="/">index</a>]
+            <h1>Transifex Slugs</h1>
+            <h2>Configuration</h2>
+            <p>
+            <table id="logs">
+                <tr><th>File Name</th><td>{{resource_config_filename}}</td></tr>
+            </table>
+            </p>
+            <h2>Project</h2>
+            <p>
+            <table id="logs">
+                {% if stats and translation_slugs['project_slug'] == stats['project_slug'] %}
+                    <tr><th>Name</th><td>{{stats['project_name']}}</td></tr>
+                    <tr><th>Slug</th><td>{{translation_slugs['project_slug']}}</td></tr>
+                {% else %}
+                    <tr><th>Name</th><td>{{stats['project_name']}}</td></tr>
+                    <tr><th>Slug</th><td><img src='../static/ic_error_black_24dp_1x.png'> {{translation_slugs['project_slug']}}</td></tr>
+                {% end %}
+            </table>
+            </p>
+            <h2>Resources</h2>
+            <p>
+            <table id="logs">
+                <tr><th>Repository Resource Path</th><th>Slug</th><th>Transifex Resouce Name</th></tr>
+                {% for key in resource_slugs %}
+                    {% if resource_slugs[key] in stats %}
+                        <tr><td>{{key}}</td><td>{{resource_slugs[key]}}</td><td>{{stats[resource_slugs[key]]}}</td></tr>
+                    {% else %}
+                        <tr><td>{{key}}</td><td><img src='../static/ic_error_black_24dp_1x.png'> {{resource_slugs[key]}}</td><td></td></tr>
+                    {% end %}
+                {% end %}
+            </table>
+            </p>
+        </div>
+    </body>
+</html>
+                                       

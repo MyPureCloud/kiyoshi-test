@@ -1,6 +1,9 @@
 import os
 import tornado.web
 
+import logging
+logger = logging.getLogger(__name__)
+
 import scheduler.jobstore.jobstore as jobstore
 import scheduler.logstore.logstore as logstore
 
@@ -12,5 +15,7 @@ class Handler(tornado.web.RequestHandler):
             recent_runs = jobstore.collect_jobs_latest_7(job)
             self.render('job.html', job=job, runjobs=recent_runs)
         else:
-            # NIY
-            pass
+            message = "Job (id='{}') not found in jobstore.".format(job_id)
+            logger.error(message)
+            self.render('error.html', message=message)
+

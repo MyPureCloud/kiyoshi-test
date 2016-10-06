@@ -16,18 +16,22 @@ from apscheduler.executors.pool import ProcessPoolExecutor
 import settings
 import scheduler.jobstore.jobstore as jobstore
 import scheduler.logstore.logstore as logstore
-import util.transifex_utils as transifex
+import scheduler.cachestore.store as cachestore
 
-from scheduler.handlers import main as main_handler
+
+from scheduler.handlers import active_jobs as active_jobs_handler 
 from scheduler.handlers import job as job_handler 
-from scheduler.handlers import jobs as jobs_handler 
-from scheduler.handlers import run as run_handler 
-from scheduler.handlers import logs as logs_handler 
+from scheduler.handlers import main as main_handler
 from scheduler.handlers import log as log_handler 
-from scheduler.handlers import resource as resource_handler 
-from scheduler.handlers import transprojects as transprojects_handler 
-from scheduler.handlers import transproject as transproject_handler 
-from scheduler.handlers import transifexresource as transifexresource_handler 
+from scheduler.handlers import logs as logs_handler 
+from scheduler.handlers import run as run_handler 
+from scheduler.handlers import resource_config as resource_config_handler 
+from scheduler.handlers import resource_configs as resource_configs_handler 
+from scheduler.handlers import suspended_jobs as suspended_jobs_handler 
+from scheduler.handlers import transifex_slugs as transifex_slugs_handler 
+from scheduler.handlers import transifex_project as transifex_project_handler 
+from scheduler.handlers import transifex_projects as transifex_projects_handler 
+from scheduler.handlers import transifex_resource as transifex_resource_handler 
 from scheduler.jobs import test as test_job, resource_uploader as resource_uploader_job, translation_uploader as translation_uploader_job
 
 logger = logging.getLogger(__name__)
@@ -39,15 +43,18 @@ class ScheduleServer():
         application = tornado.web.Application(
                 [
                     (r'/', main_handler.Handler),
+                    (r'/active_jobs', active_jobs_handler.Handler),
                     (r'/job/(.+)', job_handler.Handler),
-                    (r'/jobs', jobs_handler.Handler),
-                    (r'/run/(.+)', run_handler.Handler),
                     (r'/logs', logs_handler.Handler),
                     (r'/log/(.+)', log_handler.Handler),
-                    (r'/resource/(.+)', resource_handler.Handler),
-                    (r'/transprojects', transprojects_handler.Handler),
-                    (r'/transproject/(.+)', transproject_handler.Handler),
-                    (r'/transifexresource/(.+)', transifexresource_handler.Handler)
+                    (r'/resource_config/(.+)', resource_config_handler.Handler),
+                    (r'/resource_configs', resource_configs_handler.Handler),
+                    (r'/run/(.+)', run_handler.Handler),
+                    (r'/suspended_jobs', suspended_jobs_handler.Handler),
+                    (r'/transifex_slugs/(.+)', transifex_slugs_handler.Handler),
+                    (r'/transifex_projects', transifex_projects_handler.Handler),
+                    (r'/transifex_project/(.+)', transifex_project_handler.Handler),
+                    (r'/transifex_resource/(.+)', transifex_resource_handler.Handler)
                 ],
                 template_path = os.path.join(os.path.dirname(__file__), '..', 'templates'),
                 static_path = os.path.join(os.path.dirname(__file__), '..', 'static')
@@ -67,7 +74,7 @@ class ScheduleServer():
         self._initialized = True
         if not logstore.initialize():
             self._initialized = False
-        if not transifex.initialize():
+        if not cachestore.initialize():
             self._initialized = False
 
         self._restore_jobs()

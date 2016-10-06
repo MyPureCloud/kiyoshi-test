@@ -1,0 +1,51 @@
+{# Displays a Transiefx project and its resources.                          #}
+{# Expecting parameters                                                     #}
+{#  data: A dictiorary. (None is not expected)                              #}
+{#      {                                                                   #}
+{#      'project': TransifexProjectDetails tuple, or None                   #}
+{#      'resources': List of TransifexResourceDetails tuple, or empty list  #}
+{#      }                                                                   #}
+<!DOCTYPE html>
+{% import urllib %}
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>Transiefx Project</title>
+    </head>
+    <body>
+        <div id="body">
+            [<a href="/">index</a>] | [<a href="/transifex_projects">transifex projects</a>]
+            {% set project = data['project'] %}
+            {% set resources = data['resources'] %}
+            {% if project %}
+                <h1>Transifex Project</h1>
+                <p>
+                <table id="logs">
+                    <tr><th>Name</th><td>{{project.name}}</td></tr>
+                    <tr><th>Description</th><td>{{project.description}}</td></tr>
+                </table>
+                </p>
+                <h2>Resources</h2>
+                <p>
+                <img src='../static/ic_warning_black_24dp_1x.png'> <i><font color="red">Clicking resource name link below will initiate requests for each string in the resource. Be aware that retrieving huge number of string data from Transifex takes a while.</font></i>
+                </p>
+                <p>
+                <table id="logs">
+                    <tr><th>Slug</th><th>Name</th><th>Last Update</th><th>Strings</th><th>Words</th></tr>
+                    {% if resources %}
+                        {% for r in resources %}
+                        {% set s = '{}:{}:{}:{}'.format(project.slug, r.slug, project.name, r.name) %}
+                            {% set param = urllib.quote(s, safe='') %}
+                            <tr><td>{{r.slug}}</td><td><a href="/transifex_resource/{{param}}">{{r.name}}</a></td><td>{{r.last_updated}}</td><td>{{r.num_strings}}</td><td>{{r.num_words}}</td></tr>
+                        {% end %}
+                    {% end %}
+                </table>
+                </p>
+            {% else %}
+                <p>No project data supplied.</p>
+            {% end %}
+        </div>
+    </body>
+</html>
+                                       

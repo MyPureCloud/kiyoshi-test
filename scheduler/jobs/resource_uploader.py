@@ -75,18 +75,41 @@ class ResourceUploaderJob(job.Job):
         return self.loginfo.datetime.replace('_', ' ') 
 
     def get_exec_status(self):
+        succeeded = 0
+        failed = 0
+        unknown = 0
         for line in self.execstats:
             try:
                 d = json.loads(line)
                 if d['operation'] == 'ResourceUpload' and d['results'] ==  'SUCCESS':
-                    return 'SUCCESS'
+                    succeeded += 1
                 elif d['operation'] == 'ResourceUpload' and d['results'] ==  'FAILURE':
-                    return 'FAILURE'
+                    failed += 1
                 else:
-                    pass
+                    unknown += 1
             except ValueError as e:
                 pass
-        return 'n/a'
+
+        if succeeded == 0:
+            if unknown >= 1:
+                return "CHECK LOG - NO SUCCESS + UNKNOWN"
+            if failed == 0:
+                return "CHECK LOG - NO SUCCESS/FAILURE"
+            elif failed >= 1:
+                return "FAILURE"
+            else:
+                return "CHECK LOG (NO SUCCESS)"
+        elif succeeded >= 1:
+            if unknown >= 1:
+                return "CHECK LOG - SUCCESS + UNKNOWN"
+            if failed == 0:
+                return "SUCCESS"
+            elif failed >= 1:
+                return "CHECK LOG - SUCCESS + FAILURE"
+            else:
+                return "CHECK LOG (SUCCESS)"
+        else:
+            return "CHECK LOG"
 
     def get_exec_result_string(self):
         changed = 0

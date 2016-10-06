@@ -1,0 +1,2 @@
+""" Represents local git repository. 
+"""

@@ -1,0 +1,29 @@
+{# Displays suspended jobs.                                     #}
+{# Expecting parameters                                         #}
+{#  jobs: A list of Job, or empty list (None is not expected).  #}
+<!DOCTYPE html>
+{% import urllib %}
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>Suspended Jobs</title>
+    </head>
+    <body>
+        <div id="body">
+            [<a href="/">index</a>]
+            <h1>Suspended Jobs</h1>
+            <table id="jobs">
+                <tr><th>Status</th><th>Name</th><th>Description</th><th>Exec Date</th><th>Results</th></tr>
+                {% for job in jobs %}
+                    {% set param = urllib.quote(job.id, safe='') %}
+                    {% set status = job.get_exec_status() %}
+                    {% set datetime = job.get_exec_datetime() %}
+                    {% set results = job.get_exec_result_string() %}
+                    <tr><td>{{status}}</td><td><a href="/job/{{param}}">{{job.name}}</a></td><td>{{job.description}}</td><td>{{datetime}}</td><td>{% raw results %}</td></tr>
+                {% end %}
+            </table>
+        </div>
+    </body>
+</html>
+                                       
