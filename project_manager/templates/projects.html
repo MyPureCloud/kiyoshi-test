@@ -1,0 +1,27 @@
+{# Displays Translation Process Automation Developers Consloe index page.   #}
+{# Expecting parameters                                                     #}
+{#  projects:   List of project summary in json.                            #} 
+<!DOCTYPE html>
+{% import urllib %}
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>TPA Project Management Console</title>
+    </head>
+    <body>
+        <div id="body">
+            <h1>Project Listings</h1>
+            <p>
+            <table id="logs">
+                <tr><th>Status</th><th>Name</th><th>Description</th></tr>
+                    {% for p in projects %}
+                        {% set param = urllib.quote(p['id'], safe='') %}
+                        <tr><td>{{p['status']}}</td><td><a href="/project/{{param}}">{{p['name']}}</a></td><td>{{p['description']}}</td></tr>
+                    {% end %}
+            </table>
+            </p>
+        </div>
+    </body>
+</html>
+                                       

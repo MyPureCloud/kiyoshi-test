@@ -1,0 +1,32 @@
+{# Displays System Manager Index page.   #}
+{# Expecting parameters #}
+{#  (no parameters) #}
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>TPA System Manager</title>
+    </head>
+    <body>
+        <div id="body">
+        <p>
+        Scheduler
+        <ul>
+            <li><a href='/dashboard'>Dashboard (List of jobs w/ execution status)</a>
+            <li><a href='/jobs'>List of jobs</a>
+            <li><a href='/projects'>List of projects</a>
+        </ul>
+        </p>
+        <hr>
+        <p>
+        Repositories
+        <ul>
+            <li><a href='/list_resources'>List of resource repositories</a>
+            <li><a href='/list_translation'>List of translation repositories</a>
+        </ul>
+        </p>
+        </div>
+    </body>
+</html>
+                                       

@@ -1,0 +1,42 @@
+{# Displays system dashboard. #} 
+{# Expecting job_ideters #}
+{#      data        list of job execution status. #} 
+<!DOCTYPE html>
+{% import urllib %}
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>TPA System Manager</title>
+    </head>
+    <body>
+        <div id="body">
+            <h1>Job Execution Status</h1>
+            <p>
+            <table id="logs">
+                <tr><th>Date</th><th>Id</th><th>Status</th><th>Message</th><th>Info Log</th><th>ERR Log</th></tr>
+                    {% for i in range(0, len(data)) %}
+                        {% set job_id = urllib.quote(data[i]['job_id'], safe='') %}
+                        {% if data[i]['log_path'] %}
+                            {% set log_path = urllib.quote(data[i]['log_path'], safe='') %}
+                            {% if data[i]['err_path'] %}
+                                {% set err_path = urllib.quote(data[i]['err_path'], safe='') %}
+                                <tr><td>{{data[i]['date']}}</td><td><a href="/job/{{job_id}}/details">{{data[i]['job_id']}}</a></td><td>{{data[i]['status']}}</td><td>{{data[i]['message']}}</td><td><a href="/log/{{log_path}}/context">Info</a></td><td><a href="/log/{{err_path}}/context">ERR</a></td></tr>
+                            {% else %}
+                                <tr><td>{{data[i]['date']}}</td><td><a href="/job/{{job_id}}/details">{{data[i]['job_id']}}</a></td><td>{{data[i]['status']}}</td><td>{{data[i]['message']}}</td><td><a href="/log/{{log_path}}/context">Info</a></td><td>N/A</td></tr>
+                            {% end %}
+                        {% else %}
+                            {% if data[i]['err_path'] %}
+                                {% set err_path = urllib.quote(data[i]['err_path'], safe='') %}
+                                <tr><td>{{data[i]['date']}}</td><td><a href="/job/{{job_id}}/details">{{data[i]['job_id']}}</a></td><td>{{data[i]['status']}}</td><td>{{data[i]['message']}}</td><td>N/A</td><td><a href="/log/{{err_path}}/context">ERR</a></td></tr>
+                            {% else %}
+                                <tr><td>{{data[i]['date']}}</td><td><a href="/job/{{job_id}}/details">{{data[i]['job_id']}}</a></td><td>{{data[i]['status']}}</td><td>{{data[i]['message']}}</td><td>N/A</td><td>N/A</td></tr>
+                            {% end %}
+                        {% end %}
+                    {% end %}
+            </table>
+            </p>
+        </div>
+    </body>
+</html>
+                                       

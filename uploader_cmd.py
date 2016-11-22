@@ -1,8 +1,105 @@
-import sys
 import os
+import sys
 import json
 
-import tpa.tpa as tpa
+import settings
+import core.job as job
+import core.resource as resource
+import core.translation as translation
+import core.repository as repository
+
+def upload_resource(translation_repository, resource_bundle, log_dir):
+    success = True
+    trans_bundles = []
+    for resource in resource_bundle:
+        sys.stdout.write("Processing resource '{}'...\n".format(resource.resource_path))
+
+        if not resource.available():
+            d = {
+                'operation': "ResourceUpload",
+                'results': "FAILURE",
+                'reason': "Resource not available in local repository.",
+                'resource_full_path': os.path.join(resource.repository_name, resource.resource_path)
+                }
+            sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
+            continue
+
+        if not translation_repository.import_resource(resource):
+            success = False
+
+    return success
+
+def upload_translation(resource_repository, resource_bundle, translation_repository, log_dir, trans_config):
+    trans_bundles = []
+    for resource in resource_bundle:
+        sys.stdout.write("Preparing translation candidates for resource: '{}'...\n".format(resource.resource_path))
+
+        if not resource.available():
+            sys.stdout.write("Skipped. Resource not available in local.\n")
+            continue
+
+        trans_bundle = translation_repository.get_translation_bundle(resource.repository_name, resource.resource_path, resource.resource_translations)
+        if trans_bundle:
+            trans_bundles.append(trans_bundle)
+        else:
+            sys.stdout.write("Skipped. No translation bundle for this resource.\n")
+
+    feature_branch_name = resource_repository.import_bundles(trans_bundles)
+    if feature_branch_name:
+        sys.stdout.write("Created branch for changes: '{}'.\n".format(feature_branch_name))
+        additional_reviewers = trans_config.project_reviewers
+        results = resource_repository.submit_pullrequest(feature_branch_name, additional_reviewers)
+        return results.errors == 0
+    else:
+        sys.stdout.write("No branch created for changes.\n")
+        return True
+
+def _upload(params):
+    sys.stdout.write("Start processing: '{}'...\n".format(params['resource_config_file']))
+
+    resource_config = resource.get_configuration(filename=params['resource_config_file'])
+    if resource_config == None:    
+        sys.stderr.write("Failed to get configuration from: '{}'.".format(params['resource_config_file']))
+        sys.stdout.write("End processing: '{}'.\n".format(params['resource_config_file']))
+        return False
+
+    trans_config = translation.get_configuration(filename=params['translation_config_file'])
+    if trans_config == None:    
+        sys.stderr.write("Failed to get configuration from: '{}'.".format(params['translation_config_file']))
+        sys.stdout.write("End processing: '{}'.\n".format(params['resource_config_file']))
+        return False
+
+    resource_repo = repository.create(resource_config, params['log_dir'])
+    if resource_repo == None:    
+        sys.stderr.write("Failed to create resource repository for: '{}'.".format(params['resource_config_file']))
+        sys.stdout.write("End processing: '{}'.\n".format(params['resource_config_file']))
+        return False
+
+    trans_repo = repository.create(trans_config, params['log_dir'])
+    if trans_repo == None:    
+        sys.stderr.write("Failed to create translation repository for: '{}'.".format(params['translation_config_file']))
+        sys.stdout.write("End processing: '{}'.\n".format(params['resource_config_file']))
+        return False
+
+    resource_bundle = resource_repo.get_resource_bundle()
+    num_resources = len(resource_bundle)
+    sys.stdout.write("Number of resources: '{}'.\n".format(num_resources))
+    if num_resources == 0:
+        sys.stdout.write("End processing: '{}'.\n".format(params['resource_config_file']))
+        return True
+
+    success = False
+    if params['upload_destination_string'] == 'translation_repository':
+        success = upload_resource(trans_repo, resource_bundle, params['log_dir'])
+    elif params['upload_destination_string'] == 'resource_repository':
+        success = upload_translation(resource_repo, resource_bundle, trans_repo, params['log_dir'], trans_config)
+    else:
+        sys.stdout.write("Unknown upload destination: '{}'.\n".format(params['upload_destination_string']))
+
+    sys.stdout.write("End processing: '{}'.\n".format(params['resource_config_file']))
+    sys.stdout.flush()
+    sys.stderr.flush()
+    return success
 
 def _check_args(argv):
     # 1st arg: upload destination string.
@@ -32,11 +129,12 @@ def main(argv):
     if not params:
         sys.exit(1)
 
-    if tpa.upload(params):
+    if _upload(params):
         sys.exit(0)
     else:
         sys.exit(1)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
+
 

@@ -1,2 +1,0 @@
-""" tornado and apschedule server
-"""
