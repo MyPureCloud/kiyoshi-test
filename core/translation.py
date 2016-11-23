@@ -316,7 +316,7 @@ def get_translation_slugs(translation_platform, translation_project_name):
             return None 
         project_slug = transifex_utils.generate_project_slug(c.project_slug_prefix, translation_project_name)
         ret = transifex_utils.query_project(c, project_slug)
-        if ret:
+        if ret.succeeded:
             results = []
             for r in ret.output.resources:
                 results.append({r.slug:r.name})

@@ -398,15 +398,19 @@ def get_configuration(**kwargs):
 
 def _read_options(o):
     options = []
-    for x in o:
-        for k, v in x.items():
-            options.append(ResourceConfigurationOption(k, v))
+    # options are optional.
+    if o:
+        for x in o:
+            for k, v in x.items():
+                options.append(ResourceConfigurationOption(k, v))
     return options
     
 def _read_pullrequest(o):
     reviewers = []
-    for x in o['reviewers']:
-        reviewers.append(x)
+    # reviewers are optional.
+    if o['reviewers']:
+        for x in o['reviewers']:
+            reviewers.append(x)
     return ResourceConfigurationPullRequest(o['title'], reviewers)
 
 def _read_translations(o):

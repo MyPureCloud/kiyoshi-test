@@ -136,7 +136,8 @@ class DashboardHandler(tornado.web.RequestHandler):
                         logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
                     else:
                         logger.info(r.text)
-                        lists.append(j[0]) # only one exec stata is the retured array. 
+                        if j:
+                            lists.append(j[0]) # only one exec stata is the retured array. 
 
             self.render("dashboard.html", data=lists)
 
