@@ -56,18 +56,20 @@
                 <table id="logs">
                     <tr><th rowspan="2">Resource</th><th colspan="2">Language Translation Status</th></tr>
                     <tr><th>Completed</th><th>In Progress</th></tr>
-                    {% for r in data['resources']['resources'] %}
-                        {% if r['completed_languages'] %} 
-                            {% set comp = ','.join(r['completed_languages']) %}
-                        {% else %}
-                            {% set comp = "(None)" %}
+                    {% if data['resources'] %}
+                        {% for r in data['resources']['resources'] %}
+                            {% if r['completed_languages'] %} 
+                                {% set comp = ','.join(r['completed_languages']) %}
+                            {% else %}
+                                {% set comp = "(None)" %}
+                            {% end %}
+                            {% if r['in_progress_languages'] %} 
+                                {% set wip = ','.join(r['in_progress_languages']) %}
+                            {% else %}
+                                {% set wip = "(None)" %}
+                            {% end %}
+                            <tr><td>{{r['path']}}</td><td>{{comp}}</td><td>{{wip}}</td></tr>
                         {% end %}
-                        {% if r['in_progress_languages'] %} 
-                            {% set wip = ','.join(r['in_progress_languages']) %}
-                        {% else %}
-                            {% set wip = "(None)" %}
-                        {% end %}
-                        <tr><td>{{r['path']}}</td><td>{{comp}}</td><td>{{wip}}</td></tr>
                     {% end %}
                 </table>
                 </p>

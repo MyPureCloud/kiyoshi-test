@@ -158,23 +158,53 @@ def _setup_dir(path):
         try:
             os.makedirs(path)
         except OSError as e:
-            logger.error("Failed to create directory: '{}'. Reason: {}".format(path, e))
+            sys.stderr.write("Failed to create directory: '{}'. Reason: {}\n".format(path, e))
             return False
         else:
             if os.path.isdir(path):
                 return True
             else:
-                logger.error("Created directory does not exist: '{}'.".format(path))
+                sys.stderr.write("Created directory does not exist: '{}'.\n".format(path))
                 return False
 
+def _ensure_system_dir(path):
+    if os.path.isdir(path):
+        return True
+    else:
+        sys.stderr.write("NOT FOUND: '{}'.\n".format(path))
+        return False
+
+def _ensure_system_file(path):
+    if os.path.isfile(path):
+        return True
+    else:
+        sys.stderr.write("NOT FOUND: '{}'.\n".format(path))
+        return False
+
+def _check_settings():
+    sys.stdout.write("Checking settings...\n")
+    results = True
+    if not _ensure_system_dir(settings.TPA_ROOT_DIR):
+        results = False
+    if not _ensure_system_dir(settings.CONFIG_RESOURCE_DIR):
+        results = False
+    if not _ensure_system_dir(settings.CONFIG_TRANSLATION_DIR):
+        results = False
+    if not _ensure_system_file(settings.PROJECT_FILE):
+        results = False
+    if not _ensure_system_file(settings.JOB_FILE):
+        results = False
+    if not _ensure_system_file(settings.SCHEDULER_UPLOADER):
+        results = False
+    return results
+
 def _initialize():
-
-    # TODO --- ensure configuration files are available
-
+    if not _check_settings():
+        return False
     if not _setup_dir(settings.LOG_DIR):
         return False 
-    #if not _setup_dir(settings.CACHE_DIR):
-    #   return False
+    if not _setup_dir(settings.CACHE_DIR):
+       return False
     return True
 
 def main():
