@@ -7,7 +7,6 @@ import requests
 from requests.exceptions import ConnectionError
 from hashlib import sha1
 
-from core.creds import TransifexCredsConfiguration
 from core.plugins.repository_base import TranslationRepository, TranslationBundle, Translation
 
 from . import api as transifex
