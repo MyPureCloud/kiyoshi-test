@@ -32,17 +32,15 @@ def upload_resource(translation_repository, resource_bundle, log_dir):
 def upload_translation(resource_repository, resource_bundle, translation_repository, log_dir, trans_config):
     trans_bundles = []
     for resource in resource_bundle:
-        sys.stdout.write("Preparing translation candidates for resource: '{}'...\n".format(resource.resource_path))
-
         if not resource.available():
-            sys.stdout.write("Skipped. Resource not available in local.\n")
+            sys.stdout.write("No resource available in local: '{}'\n".format(resource.resource_path))
             continue
 
         trans_bundle = translation_repository.get_translation_bundle(resource.repository_name, resource.resource_path, resource.resource_translations)
         if trans_bundle:
             trans_bundles.append(trans_bundle)
         else:
-            sys.stdout.write("Skipped. No translation bundle for this resource.\n")
+            sys.stdout.write("No translation bundle created for resource: '{}'.\n".format(resource.resource_path))
 
     feature_branch_name = resource_repository.import_bundles(trans_bundles)
     if feature_branch_name:
@@ -83,7 +81,6 @@ def _upload(params):
 
     resource_bundle = resource_repo.get_resource_bundle()
     num_resources = len(resource_bundle)
-    sys.stdout.write("Number of resources: '{}'.\n".format(num_resources))
     if num_resources == 0:
         sys.stdout.write("End processing: '{}'.\n".format(params['resource_config_file']))
         return True

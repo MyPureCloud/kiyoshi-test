@@ -83,14 +83,17 @@ class TransifexRepository(TranslationRepository):
 
     def get_translation_bundle(self, repository_name, resource_path, resource_translations):
         translations = []
-        for lang_code in self.config.project_language_codes:
-            for translation in resource_translations:
-                if lang_code == translation.language_code:
-                    translation_path = translation.path
-                    break
-            else:
+        for lang_code in (x.strip().rstrip() for x in self.config.project_language_codes):
+            for y in resource_translations:
                 translation_path = None
-            translations.append(Translation(repository_name, resource_path, translation_path, lang_code.strip().rstrip()))
+                if lang_code == y.language_code.strip().rstrip():
+                    translation_path = y.path
+                    break
+            translations.append(Translation(repository_name, resource_path, translation_path, lang_code))
+
+        sys.stdout.write("Number of Translation in TranslationBundle: '{}' (resource_path: '{}')\n".format(len(translations), resource_path))
+        for x in translations:
+            sys.stdout.write("{}\n".format(x))
 
         return TranslationBundle(self, translations, self._log_dir)
 

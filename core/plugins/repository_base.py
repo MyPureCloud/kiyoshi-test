@@ -51,6 +51,9 @@ class Resource:
         # local
         self.local_path = str()
 
+    def __str__(self):
+        return ("Resource('repository_name': '{}', 'resource_path': '{}', 'resource_filetype': '{}', 'resource_language_code': '{}', 'resource_translation': '{}')".format(self.repository_name, self.resource_path, self.resource_filetype, self.resource_language_code, self.resource_translations))
+
     def available(self):
         return self.local_path
 
@@ -149,7 +152,11 @@ class Translation:
         self.language_code = language_code
         self.local_path = str()
 
-        # TODO --- add download status (can be used to display Translation in TranslationBundle)
+    def __str__(self):
+        return ("Translation('repository_name': '{}', 'resource_path': '{}', 'translation_path': '{}', 'language_code': '{}', 'local_path': '{}')".format(self.repository_name, self.resource_path, self.translation_path, self.language_code, self.local_path))
+
+
+    # TODO --- add download status (can be used to display Translation in TranslationBundle)
 
 class TranslationBundle:
     def __init__(self, platform_repository, translations, log_dir):

@@ -67,6 +67,11 @@ class GithubRepository(ResourceRepository):
         n = len(self.config.resources)
         for i in range(0, n):
             resources.append(self._create_resource(self.config.repository_name, i))
+
+        sys.stdout.write("Number of Resource in ResourceBundle: '{}'\n".format(len(resources)))
+        for x in resources:
+            sys.stdout.write("{}\n".format(x))
+
         return  ResourceBundle(self.local_repo, resources, self._log_dir)
 
     def _create_resource(self, repository_name, resource_index):
