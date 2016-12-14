@@ -20,22 +20,31 @@ from apscheduler.executors.pool import ProcessPoolExecutor
 
 import settings
 
-def _get_project_details(project_id):
-    url = '{}/{}/{}'.format(settings.TPA_API_PROJECT, project_id, 'details')
+def _call_api(url):
     try:
         r = requests.get(url)
         r.raise_for_status()
+        j = json.loads(r.text)
     except (RequestException, HTTPError) as e:
         logger.error("Failed API call: '{}', Reason: '{}'.".format(url, e))
-        return None
+        return None 
+    except ValueError as e:
+        logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
+        return None 
     else:
-        try:
-            data = json.loads(r.text)
-        except ValueError as e:
-            logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
-        else:
-            logger.info("Project Details (project_id='{}'): '{}'".format(project_id, data))
-            return data
+        logger.info(r.text)
+        return j 
+
+def _call_api_and_render(handler, url, html_template, error_message):
+    j = _call_api(url)
+    if j != None:
+        handler.render(html_template, data=j)
+    else:
+        handler.render('fatal_error.html', summary=error_message, details="")
+
+def _get_project_details(project_id):
+    url = '{}/{}/{}'.format(settings.TPA_API_PROJECT, project_id, 'details')
+    return _call_api(url)
 
 def _collect_project_data(project_id):
     project = _get_project_details(project_id)
@@ -48,39 +57,11 @@ def _collect_project_data(project_id):
 
 def _get_project_resource_details(project_id):
     url = '{}/{}/{}'.format(settings.TPA_API_PROJECT, project_id, 'resource/details')
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-    except (RequestException, HTTPError) as e:
-        logger.error("Failed API call: '{}', Reason: '{}'.".format(url, e))
-        return []
-    else:
-        try:
-            data = json.loads(r.text)
-        except ValueError as e:
-            logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
-            return []
-        else:
-            logger.info("Project Resource Details (project_id='{}'): '{}'".format(project_id, data))
-            return data
+    return _call_api(url)
 
 def _get_job_details(job_id):
     url = '{}/{}/{}'.format(settings.TPA_API_JOB, job_id, 'details')
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-    except (RequestException, HTTPError) as e:
-        logger.error("Failed API call: '{}', Reason: '{}'.".format(url, e))
-        return None
-    else:
-        try:
-            data = json.loads(r.text)
-        except ValueError as e:
-            logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
-            return None
-        else:
-            logger.info("Job Details (job_id='{}'): '{}'".format(job_id, data))
-            return data
+    return _call_api(url)
 
 def _get_resource_uploader_job_details(jobs):
     # As, there, currently, is only one ResourceUploaderJob in a project's job list.
@@ -108,21 +89,7 @@ def _get_translation_uploader_job_details(jobs):
 
 def _get_job_sync_status(job_id):
     url = '{}/{}/{}'.format(settings.TPA_API_JOB, job_id, 'sync/status')
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-    except (RequestException, HTTPError) as e:
-        logger.error("Failed API call: '{}', Reason: '{}'.".format(url, e))
-        return {}
-    else:
-        try:
-            data = json.loads(r.text)
-        except ValueError as e:
-            logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
-            return {}
-        else:
-            logger.info("Job Sync Status (job_id='{}'): '{}'".format(job_id, data))
-            return data
+    return _call_api(url)
 
 def _collect_job_sync_data(project_id):
     results = []
@@ -161,21 +128,7 @@ def _collect_job_sync_data(project_id):
 
 def _get_translation_status(project_id):
     url = '{}/{}/{}'.format(settings.TPA_API_PROJECT, project_id, 'translation/status')
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-    except (RequestException, HTTPError) as e:
-        logger.error("Failed API call: '{}', Reason: '{}'.".format(url, e))
-        return []
-    else:
-        try:
-            data = json.loads(r.text)
-        except ValueError as e:
-            logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
-            return []
-        else:
-            logger.info("Translation Status (project_id='{}'): '{}'".format(project_id, data))
-            return data
+    return _call_api(url)
 
 def _collect_resource_data(project_id):
     d = _get_project_resource_details(project_id)
@@ -242,22 +195,7 @@ class ProjectDetailsHandler(tornado.web.RequestHandler):
 class ListProjectsHandler(tornado.web.RequestHandler):
     def get(self):
         url = settings.TPA_API_PROJECTS
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-        except (RequestException, HTTPError) as e:
-            message = "Failed API call: '{}', Reason: '{}'.".format(url, e)
-            logger.error(message)
-            self.render('fatal_error.html', summary="Failed to obtain project listings.", details=message)
-        else:
-            try:
-                data = json.loads(r.text)
-            except ValueError as e:
-                message = "Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text)
-                logger.error(message)
-                self.render('fatal_error.html', summary="Failed to obtain project listings.", details=message)
-            else:
-                self.render("projects.html", projects=data)
+        _call_api_and_render(self, url, 'projects.html', "Failed to obtain project listings.")
 
 class ExecuteProjectJobHandler(tornado.web.RequestHandler):
     def post(self, project_id, job_id):

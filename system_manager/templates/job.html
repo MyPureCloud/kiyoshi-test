@@ -1,6 +1,6 @@
-{# Displays Job Details page.   #}
-{# Expecting parameters #}
-{#      job #} 
+{# Displays Job Details page.       #}
+{# Expecting parameters             #}
+{#      data        Job context.    #} 
 <!DOCTYPE html>
 {% import urllib %}
 <html>
@@ -14,20 +14,20 @@
             <h1>Job Details</h1>
             <p>
             <table id="logs">
-                <tr><th>Status</th><td>{{job['status']}}</td></tr>
-                <tr><th>Class</th><td>{{job['class_name']}}</td></tr>
-                <tr><th>Id</th><td>{{job['id']}}</td></tr>
-                <tr><th>Name</th><td>{{job['name']}}</td></tr>
-                <tr><th>Description</th><td>{{job['description']}}</td></tr>
-                {% set param = urllib.quote(job['resource_config_filename'], safe='') %}
-                <tr><th>Resource Configuration File</th><td><a href="/config/resource/{{param}}">{{job['resource_config_filename']}}</a></td></tr>
-                {% set param2 = urllib.quote(job['translation_config_filename'], safe='') %}
-                <tr><th>Translation Configuration File</th><td><a href="/config/translation/{{param2}}">{{job['translation_config_filename']}}</a></td></tr>
-                <tr><th>Schedule</th><td>{{job['job_cron_string']}}</td></tr>
+                <tr><th>Status</th><td>{{data['status']}}</td></tr>
+                <tr><th>Class</th><td>{{data['class_name']}}</td></tr>
+                <tr><th>Id</th><td>{{data['id']}}</td></tr>
+                <tr><th>Name</th><td>{{data['name']}}</td></tr>
+                <tr><th>Description</th><td>{{data['description']}}</td></tr>
+                {% set param = urllib.quote(data['resource_config_filename'], safe='') %}
+                <tr><th>Resource Configuration File</th><td><a href="/config/resource/{{param}}">{{data['resource_config_filename']}}</a></td></tr>
+                {% set param2 = urllib.quote(data['translation_config_filename'], safe='') %}
+                <tr><th>Translation Configuration File</th><td><a href="/config/translation/{{param2}}">{{data['translation_config_filename']}}</a></td></tr>
+                <tr><th>Schedule</th><td>{{data['job_cron_string']}}</td></tr>
             </table>
             </p>
             <p>
-            {% set param3 = urllib.quote(job['id'], safe='') %}
+            {% set param3 = urllib.quote(data['id'], safe='') %}
             <a href="/job/{{param3}}/check/slugs">Check Slugs for Resources</a>
             </p>
         </div>

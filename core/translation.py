@@ -16,6 +16,16 @@ def to_dict(o):
         return _LanguageStats_to_dict(o)
     elif type(o) == TranslationConfiguration:
         return _TranslationConfiguration_to_dict(o)
+    elif type(o) == TranslationPlatformProject:
+        return _TranslationPlatformProject_to_dict(o)
+    elif type(o) == TranslationPlatformProjectDetails:
+        return _TranslationPlatformProjectDetails_to_dict(o)
+    elif type(o) == TranslationPlatformProjectResourceDetails:
+        return _TranslationPlatformProjectResourceDetails_to_dict(o)
+    elif type(o) == TranslationPlatformTranslationStringDetails:
+        return _TranslationPlatformTranslationStringDetails_to_dict(o)
+    elif type(o) == TranslationPlatformSourceStringDetails:
+        return _TranslationPlatformSourceStringDetails_to_dict(o)
     else:
         logger.error("Unknown type: '{}'.".format(type(o)))
         return {}
@@ -26,7 +36,8 @@ def to_dict(o):
 '''
     Translation Details 
 
-    Translation repository information.
+
+
 '''
 
 # Translated Resource Repository
@@ -48,7 +59,7 @@ def _TranslatedResourceRepository_to_dict(o):
 # platform                          Translation repository platform name (e.g. transifex).
 # project_name                      Translation project name.
 # project_languages                 List of language code the project is translated into.
-# translated_resource_repositories  List of translated resource repository.
+# translated_resource_repositories  List of translated resource repository (TranslatedResourceRepository tuple).
 TranslationDetails = namedtuple('TranslationDetails', 'platform, project_name, project_languages, translated_resource_repositories') 
 
 def _TranslationDetails_to_dict(o):
@@ -99,7 +110,7 @@ def _LanguageStats_to_dict(o):
             'last_updated': o.last_updated,
             'num_reviewed_strings': o.num_reviewed_strings,
             'percentage_reviewed_strings': o.percentage_reviewed_strings,
-            'num_translated_strings': o.num_translated_strigs,
+            'num_translated_strings': o.num_translated_strings,
             'num_untranslated_strings': o.num_untranslated_strings,
             'percentage_translated_strings': o.percentage_translated_strings,
             'num_translated_words': o.num_translated_words,
@@ -117,14 +128,13 @@ def get_language_stats(translation_platform, translation_project_name, resource_
 
         project_slug = transifex_utils.generate_project_slug(c.project_slug_prefix, translation_project_name)
         resource_slug = transifex_utils.generate_resource_slug(c.resource_slug_prefix, [resource_repository_name, resource_path])
-        ret = transifex_utils.get_all_translation_stats(c, project_slug, resource_slug)
-        if not ret.succeeded:
-            logger.error("Failed to get resource details for '{}/{}'. Reason: '{}'.".format(resource_repository_name, resource_path, ret.message))
+        d = transifex_utils.get_all_translation_stats(c, project_slug, resource_slug)
+        if not d:
             return None 
 
         results = []
         # convert TransifeixTranslationStats to LanguageStats
-        for stats in ret.output:
+        for stats in d:
             results.append(LanguageStats(
                                 stats.language_code,
                                 stats.last_updated,
@@ -178,14 +188,18 @@ def get_master_language_stats(**kwargs):
             logger.error("Failed to get creds for transifex.")
             return None 
 
-        project_slug = transifex_utils.generate_project_slug(c.project_slug_prefix, kwargs['project_name'])
-        resource_slug = transifex_utils.generate_resource_slug(c.resource_slug_prefix, [kwargs['resource_repository_name'], kwargs['resource_path']])
-        ret = transifex_utils.get_resource_details(c, project_slug, resource_slug)
-        if ret.succeeded:
+        pslug = transifex_utils.generate_project_slug(c.project_slug_prefix, kwargs['project_name'])
+        rslug = transifex_utils.generate_resource_slug(c.resource_slug_prefix, [kwargs['resource_repository_name'], kwargs['resource_path']])
+
+        _setup_dir(os.path.join(settings.CACHE_DIR, kwargs['platform'], 'projects', pslug, rslug))
+        out = os.path.join(settings.CACHE_DIR, kwargs['platform'], 'projects', pslug, rslug, 'resource.cache')
+
+        d = transifex_utils.get_platform_project_resource_details(c, out, pslug, rslug)
+        if d != None:
             # convert TransifeixMasterLanguageStats to MasterLanguageStats
-            return MasterLanguageStats(ret.output.slug, ret.output.name, ret.output.last_updated, ret.output.num_strings, ret.output.num_words, ret.output.language_code)
+            return MasterLanguageStats(d.slug, d.name, d.last_updated, d.num_strings, d.num_words, d.language_code)
         else:
-            logger.error("Failed to get resource details for '{}/{}'. Reason: '{}'.".format(kwargs['resource_repository_name'], kwargs['resource_path'], ret.message))
+            logger.error("Failed to get resource details for '{}/{}'.".format(kwargs['resource_repository_name'], kwargs['resource_path']))
             return None
     elif kwargs['platform'] == 'crowdin':
         logger.error("NIY: get_master_language_stats() for crowdin.")
@@ -291,14 +305,17 @@ def _read_configuration_file(file_path):
                 return TranslationConfiguration(os.path.basename(file_path), file_path, name, platform, languages, repositories, reviewers)
 
 def get_resource_slugs(translation_platform, translation_project_name, resource_repository_name, resource_paths):
-    """ Return list of {<resource path>:<resource slug>} dictionary. """
+    """ Return list of {<resource path>:<resource slug>} dictionary.
+        Resource slugs are generated by given parameters (instead of querying them from translation platform).
+    """
     if translation_platform == 'transifex':
         c = creds.get(translation_platform)
         if not c:
             logger.error("Failed to get creds for platform: '{}'.\n".format(translation_platform))
             return None 
 
-        project_slug = transifex_utils.generate_project_slug(c.project_slug_prefix, translation_project_name)
+        # @@@@ why did i need line below ???
+        #project_slug = transifex_utils.generate_project_slug(c.project_slug_prefix, translation_project_name)
         results = []
         for r in resource_paths:
             results.append({r: transifex_utils.generate_resource_slug(c.resource_slug_prefix, [resource_repository_name, r])})
@@ -307,24 +324,290 @@ def get_resource_slugs(translation_platform, translation_project_name, resource_
         logger.error("NIY: get_resource_slugs() for '{}'".format(translation_platform))
         return []
 
-def get_translation_slugs(translation_platform, translation_project_name):
-    """ Return list of {<slug>:<name of the slug>} dictionary. """
+def get_translation_resource_slugs(translation_platform, translation_project_name):
+    """ Return list of {<resource slug>:<name of resource} dictionary by querying specified project
+        in translation platform.
+        Project cache file will be created as results of this operation.
+    """
     if translation_platform == 'transifex':
         c = creds.get(translation_platform)
         if not c:
             logger.error("Failed to get creds for platform: '{}'.\n".format(translation_platform))
             return None 
-        project_slug = transifex_utils.generate_project_slug(c.project_slug_prefix, translation_project_name)
-        ret = transifex_utils.query_project(c, project_slug)
-        if ret.succeeded:
+        pslug = transifex_utils.generate_project_slug(c.project_slug_prefix, translation_project_name)
+        
+        _setup_dir(os.path.join(settings.CACHE_DIR, translation_platform, 'projects', pslug))
+        out = os.path.join(settings.CACHE_DIR, translation_platform, 'projects', pslug, 'project.cache')
+        
+        d = transifex_utils.get_platform_project_details(c, out, pslug)
+        if d != None:
             results = []
-            for r in ret.output.resources:
-                results.append({r.slug:r.name})
+            for x in d.resources:
+                results.append({x.slug:x.name})
             return results
         else:
-            logger.error("Failed to query project. project: '{}', Reason: '{}'.".format(project_slug, ret.message))
+            logger.error("Failed to query project. project: '{}'.".format(pslug))
             return []
     else:
         logger.error("NIY: get_resource_slugs() for '{}'".format(translation_platform))
         return []
+
+def _setup_dir(path):
+    if not os.path.isdir(path):
+        try:
+            os.makedirs(path)
+        except OSError as e:
+            logger.error("Failed to create directory: '{}'. Reason: {}".format(path, e))
+        else:
+            if not os.path.isdir(path):
+                logger.error("Created directory does not exist: '{}'.".format(path))
+
+'''
+    Translation Platform Project Summary
+
+
+
+'''
+# Summary of a project in translation platform.
+#
+# keys          values
+# -----------------------------------
+# name          Name of the project.
+# description   Project description.
+# slug          Project slug.
+TranslationPlatformProject = namedtuple('TranslationPlatformProject', 'name, description, slug')
+
+def _TranslationPlatformProject_to_dict(o):
+    return {'name': o.name, 'description': o.description, 'slug': o.slug}
+
+def get_platform_projects(platform):
+    """
+    Return list of project information (summary).
+    Return None on any errors.
+    """
+    c = creds.get(platform)
+    if not c:
+        logger.error("Failed to get creds for platform: '{}'.\n".format(platform))
+        return None 
+        
+    # Cache directory (e.g. cache/transifex/projects) should be created before
+    # any other platform query is made.
+    _setup_dir(os.path.join(settings.CACHE_DIR, platform))
+    _setup_dir(os.path.join(settings.CACHE_DIR, platform, 'projects'))
+    out = os.path.join(settings.CACHE_DIR, platform, 'projects', 'projects.cache')
+
+    if platform == 'transifex':
+        d = transifex_utils.get_platform_projects(c, out)
+        if d != None:
+            l = []
+            for x in d:
+                l.append(TranslationPlatformProject(x.name, x.description, x.slug))
+            return l
+        else:
+            return None
+    else:
+        logger.error("NIY: get_platform_projects() for '{}'".format(platform))
+        return None
+
+'''
+    Translation Platform Project Details
+
+
+
+'''
+# Summary of a project resource in translation platform.
+#
+# slug                  resource slug
+# name                  resource name
+TranslationPlatformProjectResource = namedtuple('TranslationPlatformProjectResource', 'slug, name')
+
+def _TranslationPlatformResource_to_dict(o):
+    return {'slug': o.slug, 'name': o.name}
+
+# Details of a project in translation plotform.
+#
+# keys                      values
+# ---------------------------------------------------------------------
+# name                      Name of the project.
+# description               Project description.
+# slug                      Project slug.
+# source_language_code      Langauge code of source strings.
+# resources                 List of TranslationPlatformProjectResource.
+TranslationPlatformProjectDetails = namedtuple('TranslationPlatformProjectDetails', 'name, description, slug, source_language_code, resources')
+
+def _TranslationPlatformProjectDetails_to_dict(o):
+    l = []
+    for x in o.resources:
+        l.append(_TranslationPlatformResource_to_dict(x))
+    return {'name': o.name, 'description': o.description, 'slug': o.slug, 'source_language_code': o.source_language_code, 'resources': l}
+
+def get_platform_project_details(platform, pslug, use_cache=True):
+    """
+    Return project details (TranslationPlatformProjectDetails tuple) for a translation project.
+    Return None on any errors.
+
+    When use_cache=True and the cache file exists, read project details from the file.
+    """
+    c = creds.get(platform)
+    if not c:
+        logger.error("Failed to get creds for platform: '{}'.\n".format(platform))
+        return None 
+        
+    _setup_dir(os.path.join(settings.CACHE_DIR, platform, 'projects', pslug))
+    out = os.path.join(settings.CACHE_DIR, platform, 'projects', pslug, 'project.cache')
+
+    if platform == 'transifex':
+        if use_cache and os.path.isfile(out):
+            d = transifex_utils.read_platform_project_details(c, out)
+        else:
+            d = transifex_utils.get_platform_project_details(c, out, pslug)
+        if d != None:
+            l = []
+            for x in d.resources:
+                l.append(TranslationPlatformProjectResource(x.slug, x.name))
+            return TranslationPlatformProjectDetails(d.name, d.description, d.slug, d.source_language_code, l)
+        else:
+            logger.error("Failed to query translation project details. Reason: '{}'".format(ret.message))
+            return None
+    else:
+        logger.error("NIY: get_platform_project_details() for '{}'".format(platform))
+        return None
+
+# Details of a resource in translation platform project.
+#
+# slug                  resource slug
+# name                          resource name
+# last_updated                  last updated date for the resource
+# num_strings                   number of strings in the resource
+# num_words                     number of words in the source
+# language_code                 language code of the resource
+# translated_language_codes     list of language code for translations
+TranslationPlatformProjectResourceDetails = namedtuple('TranslationPlatformProjectResourceDetails', 'slug, name, last_updated, num_strings, num_words, language_code, translated_language_codes')
+
+def _TranslationPlatformProjectResourceDetails_to_dict(o):
+    return {'slug': o.slug, 'name': o.name, 'last_updated': o.last_updated, 'num_strings': o.num_strings, 'num_words': o.num_words, 'language_code': o.language_code, 'translated_language_codes': o.translated_language_codes}
+
+def get_platform_project_resource_details(platform, pslug, rslug, use_cache=True):
+    """
+    Return details (TranslationPlatformProjectResource tuple) for a specified resource.
+    Return None on any errors.
+
+    When use_cache=True and the cache file exists, read resource details from the file.
+    """
+    c = creds.get(platform)
+    if not c:
+        logger.error("Failed to get creds for platform: '{}'.\n".format(platform))
+        return None 
+        
+    _setup_dir(os.path.join(settings.CACHE_DIR, platform, 'projects', pslug, rslug))
+    out = os.path.join(settings.CACHE_DIR, platform, 'projects', pslug, rslug, 'resource.cache')
+
+    if platform == 'transifex':
+        if use_cache and os.path.isfile(out):
+            d = transifex_utils.read_platform_project_resource_details(c, out)
+        else:
+            d = transifex_utils.get_platform_project_resource_details(c, out, pslug, rslug)
+        if d != None:
+           return TranslationPlatformProjectResourceDetails(d.slug, d.name, d.last_updated, d.num_strings, d.num_words, d.language_code, d.translated_language_codes)
+        else:
+           return None
+    else:
+        logger.error("Unknown platform: '{}'.\n".format(platform))
+        return None
+
+# Details of translation strings.
+#
+# key                   key for the string.
+# source                source string.
+# translation           translation for the source string.
+# reviewed              true when reviewed, false otherwise.               
+# last_updated          last updated date.
+TranslationPlatformTranslationStringDetails = namedtuple('TranslationPlatformTranslationStringDetails', 'key, source, translation, reviewed, last_updated')
+
+def _TranslationPlatformTranslationStringDetails_to_dict(o):
+    return {'key': o.key, 'source': o.source, 'translation': o.translation, 'reviewed': o.reviewed, 'last_updated': o.last_updated}
+
+def get_platform_project_translation_strings(platform, pslug, rslug, lang, use_cache=True):
+    """
+    Return list of translated string (TranslationPlatformTranslationString tuple) for a specified language of resource.
+    Return None on any errors.
+
+    When use_cache=True and the cache file exists, read strings from the file.
+    """
+    c = creds.get(platform)
+    if not c:
+        logger.error("Failed to get creds for platform: '{}'.\n".format(platform))
+        return None 
+        
+    _setup_dir(os.path.join(settings.CACHE_DIR, platform, 'projects', pslug, rslug))
+    out = os.path.join(settings.CACHE_DIR, platform, 'projects', pslug, rslug, 'strings.' + lang + '.cache')
+
+    if platform == 'transifex':
+        if use_cache and os.path.isfile(out):
+            d = transifex_utils.read_platform_project_translation_strings(c, out)
+        else:
+            d = transifex_utils.get_platform_project_translation_strings(c, out, pslug, rslug, lang)
+        if d != None:
+            l = []
+            for x in d:
+                l.append(TranslationPlatformTranslationStringDetails(x.key, x.source, x.translation, x.reviewed, x.last_updated))
+            return l
+        else:
+           return None
+    else:
+        logger.error("Unknown platform: '{}'.\n".format(platform))
+        return None
+
+def get_platform_string_id(platform, **kwargs):
+    if platform == 'transifex':
+        if 'string_key' in kwargs:
+            return transifex_utils.calc_string_hash(kwargs['string_key'])
+        else:
+            logger.error("string_key is missing to calc string hash for Transifex.")
+            return None
+    else:
+        logger.error("Unknown platform: '{}'.\n".format(platform))
+        return None
+
+# Details of a source string.
+#
+# comment               Comment string attached to the source string.
+# tags                  list of tags attached to the source string.
+TranslationPlatformSourceStringDetails = namedtuple('TranslationPlatformSourceStringDetails', 'comment, tags')
+
+def _TranslationPlatformSourceStringDetails_to_dict(o):
+    l = []
+    if o.tags:
+        for x in o.tags:
+            l.append(x)
+    return {'comment': o.comment, 'tags': l}
+
+def get_platform_project_source_string_details(platform, pslug, rslug, string_id, use_cache=True):
+    """
+    Return details of a source sting.
+    Return None on any errors.
+
+    When use_cache=True and the cache file exists, read string details from the file.
+    """
+    c = creds.get(platform)
+    if not c:
+        logger.error("Failed to get creds for platform: '{}'.\n".format(platform))
+        return None 
+
+    destdir = os.path.join(settings.CACHE_DIR, platform, 'projects', pslug, rslug, 'source')
+    _setup_dir(destdir)
+    out = os.path.join(destdir, string_id + '.cache')
+
+    if platform == 'transifex':
+        if use_cache and os.path.isfile(out):
+            d = transifex_utils.read_platform_project_source_string_details(c, out)
+        else:
+            d = transifex_utils.get_platform_project_source_string_details(c, out, pslug, rslug, string_id)
+        if d != None:
+            return TranslationPlatformSourceStringDetails(d.comment, d.tags)
+        else:
+           return None
+    else:
+        logger.error("Unknown platform: '{}'.\n".format(platform))
+        return None
 

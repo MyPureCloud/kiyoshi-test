@@ -1,466 +1,42 @@
 import os
+import sys
 import json
+import codecs
 import re
 from hashlib import sha1
+from hashlib import md5
+from collections import namedtuple
 
 import logging
 logger = logging.getLogger(__name__)
 
-from core.plugins.results import succeeded_util_call_results, failed_util_call_results
 import api as transifex
-
-import settings # temp for CACHE_DIR
-PROJECT_BASE_DIR =  os.path.join(settings.CACHE_DIR, 'transifex', 'projects')
-PROJECTS_CACHE_FILE_PATH = os.path.join(PROJECT_BASE_DIR, 'projects.cache')
-
-from .common import TransifexProject
-from .common import TransifexProjectDetails
-from .common import TransifexResource
-from .common import TransifexResourceDetails
-from .common import TransifexSourceStringDetails
-from .common import TransifexTranslationStringDetails
-from .common import TransifexTranslationStats
 
 def translation_review_completed(language_stats_response_text):
     try:
-        d = json.loads(language_stats_response_text)
+        j = json.loads(language_stats_response_text)
+        r = j['reviewed_percentage']
     except ValueError as e:
-        return failed_util_call_results(e)
+        logger.error("Failed to parse response text. Reason: '{}'. Context: '{}'".format(str(e), language_stats_response_text))
+        return False
+    except KeyError as e:
+        logger.error("Faild to check review status. Reason: '{}', Context: '{}'.".format(e, j))
+        return False
     else:
-        return succeeded_util_call_results(d['reviewed_percentage'] == '100%')
+        return r == '100%'
 
 def get_translation_content(get_translation_response_text):
     try:
         d = json.loads(get_translation_response_text)
+        r = j['content']
     except ValueError as e:
-        return failed_util_call_results(e)
-    else:
-        return succeeded_util_call_results(d['content'])
-
-def _create_response_text_file(response, path):
-    if os.path.isfile(path):
-        os.remove(path)
-        
-    try:
-        with open(path, 'w') as fo:
-            fo.write(response.text)
-    except(IOError, OSError) as e:
-        return failed_util_call_results("Failed to write response text '{}' as file '{}'. Reason: '{}'.".format(response.text, path, e)) 
-    else:
-        return succeeded_util_call_results(None)
-
-def _response_file_to_json(path):
-    try:
-        fi = open(path)
-    except (OSError, IOError) as e:
-        return failed_util_call_results("Failed to open response file '{}'. Reason: '{}'.".format(path, e))
-
-    try:
-        data = json.load(fi)
-    except ValueError as e:
-        fi.close()
-        return failed_util_call_results("Failed to load response file '{}' as json. Reason: '{}'.".format(path, e))
-    else:
-        return succeeded_util_call_results(data)
-
-def _response_text_to_json(response_text):
-    try:
-        data = json.loads(response_text)
-    except ValueError as e:
-        return failed_util_call_results("Failed to load response text '{}' as json. Reason: '{}'.".format(response_text, e))
-    else:
-        return succeeded_util_call_results(data)
-
-def _to_list_projects(json_data):
-    results = []
-    try:
-        for project in json_data:
-            results.append(
-                TransifexProject(
-                    project['slug'],
-                    project['name'],
-                    project['description']
-                ))
+        logger.error("Failed to parse response text. Reason: '{}'. Context: '{}'".format(str(e), get_translation_response_text))
+        return None 
     except KeyError as e:
-        return failed_util_call_results("Failed to read Transifex projects json '{}'. Reason: '{}'.".format(json_data, e))
-    else: 
-        return succeeded_util_call_results(results)
-
-def _to_project_details(json_data):
-    resources = []
-    try:
-        for resource in json_data['resources']:
-            resources.append(TransifexResource(resource['slug'], resource['name']))
-    except KeyError as e:
-        return failed_util_call_results("Failed to read Transifex resource in project details json '{}'. Reason: '{}'.".format(json_data, e))
-
-    try:
-        results = TransifexProjectDetails(
-                    json_data['slug'],
-                    json_data['name'],
-                    json_data['description'],
-                    resources
-                )
-    except KeyError as e:
-        return failed_util_call_results("Failed to read Transifex project details json '{}'. Reason: '{}'.".format(json_data, e))
-    else: 
-        return succeeded_util_call_results(results)
-
-def _to_resource_details(json_data):
-    try:
-        results = TransifexResourceDetails(
-                    json_data['slug'],
-                    json_data['name'],
-                    json_data['last_update'],
-                    json_data['total_entities'],
-                    json_data['wordcount'],
-                    json_data['source_language_code']
-        )
-    except KeyError as e:
-        return failed_util_call_results("Failed to read Transifex resources json '{}'. Reason: '{}'.".format(json_data, e))
-    
-    return succeeded_util_call_results(results)
-
-def _to_translation_string_details(json_data):
-    try:
-        results = TransifexTranslationStringDetails(
-                    json_data['key'],
-                    json_data['source_string'],
-                    json_data['translation'],
-                    json_data['reviewed'],
-                    json_data['last_update']
-        )
-    except KeyError as e:
-        return failed_util_call_results("Failed to read Transifex translation string details json '{}'. Reason: '{}'.".format(json_data, e))
-    
-    return succeeded_util_call_results(results)
-
-def _to_source_string_details(json_data):
-    try:
-        results = TransifexSourceStringDetails(
-                    json_data['comment'],
-                    json_data['tags']
-        )
-    except KeyError as e:
-        return failed_util_call_results("Failed to read Transifex source string details json '{}'. Reason: '{}'.".format(json_data, e))
-    
-    return succeeded_util_call_results(results)
-
-def _setup_dir(path):
-    if os.path.isdir(path):
-        return True
+        logger.error("Faild to get translation conntent. Reason: '{}', Context: '{}'.".format(e, j))
+        return None
     else:
-        try:
-            os.makedirs(path)
-        except OSError as e:
-            logger.error("Failed to create directory: '{}'. Reason: {}".format(path, e))
-            return False
-        else:
-            if os.path.isdir(path):
-                return True
-            else:
-                logger.error("Created directory does not exist: '{}'.".format(path))
-                return False
-
-def _get_source_string_details_path(project_slug, resource_slug, key):
-    return os.path.join(_get_source_dir(project_slug, resource_slug), key + '.cache')
-
-def _get_source_dir(project_slug, resource_slug):
-    global PROJECT_BASE_DIR
-    return os.path.join(PROJECT_BASE_DIR, project_slug, resource_slug + '_source')
-
-def _get_translation_strings_details_cache_path(project_slug, resource_slug, language_code):
-    return os.path.join(_get_project_dir(project_slug), resource_slug + '.strings.cache.' + language_code)
-
-def _get_resource_cache_path(project_slug, resource_slug):
-    return os.path.join(_get_project_dir(project_slug), resource_slug + '.resource.cache')
-
-def _get_project_cache_path(project_slug):
-    return os.path.join(_get_project_dir(project_slug), 'project.cache')
-
-def _get_project_dir(project_slug):
-    global PROJECT_BASE_DIR
-    return os.path.join(PROJECT_BASE_DIR, project_slug)
-
-def _query_projects(creds, output_path=None):
-    ret = transifex.get_projects(creds)
-    if not ret.succeeded:
-        return failed_util_call_results(ret.message)
-
-    ret2 = _response_text_to_json(ret.response.text)
-    if not ret2.succeeded:
-        return failed_util_call_results(ret2.message)
-
-    if output_path:
-        ret3 = _create_response_text_file(ret.response, output_path)
-        if not ret3.succeeded:
-            return failed_util_call_results(ret3.message)
-
-    ret3 = _to_list_projects(ret2.output)
-    if ret3.succeeded:
-        return succeeded_util_call_results(ret3.output)
-    else:
-        return failed_util_call_results(ret3.message)
-
-def _ensure_transifex_cache_directory():
-    _setup_dir(os.path.join(settings.CACHE_DIR, 'transifex'))
-    _setup_dir(os.path.join(settings.CACHE_DIR, 'transifex', 'projects'))
-
-def query_projects(creds):
-    """ Return list of project information (list of TransifexProject tuples).
-
-        This is to get all projects (slugs and names) by quering Transifex
-        with specified creds.
-
-        NOTE:
-        A projects cache file is created each time this is called (but this
-        function never read the file because accessible projects are based
-        on creds).
-    """
-
-    # FIXME
-    # Directory like cache/transifex/projects should be created somewhere
-    # before any util function is called.
-    # Since this is the very first function to be called to list
-    # Transifex contents, create director in here, just for the time being...
-    _ensure_transifex_cache_directory()
-
-    global PROJECTS_CACHE_FILE_PATH
-    ret = _query_projects(creds, PROJECTS_CACHE_FILE_PATH)
-    if ret.succeeded:
-        return succeeded_util_call_results(ret.output)
-    else:
-        return failed_util_call_results("Failed to get projects. Reason: '{}'.".format(ret.message))
-
-def _read_project_details_response_file(path):
-    if not os.path.isfile(path):
-        return failed_util_call_results("Transifex project details response file not found: '{}'.".format(path))
-
-    ret = _response_file_to_json(path)
-    if not ret.succeeded:
-        return failed_util_call_results(ret.message)
-
-    ret2 = _to_project_details(ret.output)
-    if ret2.succeeded:
-        return succeeded_util_call_results(ret2.output)
-    else:
-        return failed_util_call_results(ret2.message)
-
-def _get_project_details(creds, project_slug):
-    path = _get_project_cache_path(project_slug)
-    if not os.path.isfile(path):
-        ret = transifex.get_project_details(project_slug, creds)
-        if not ret.succeeded:
-            return failed_util_call_results("Failed to query project details from Transifex. Reason: '{}'.".format(ret.message))
-
-        project_dir = _get_project_dir(project_slug)
-        if not os.path.isdir(project_dir):
-            try:
-                os.makedirs(project_dir)
-            except OSError as e:
-                return failed_util_call_results("Failed to create project dir. Reason: '{}'.".format(e))
-
-        ret2 = _create_response_text_file(ret.response, path)
-        if not ret2.succeeded:
-            return failed_util_call_results("Failed to create project details cache file. Reason: '{}'.".format(ret2.message))
-
-    ret3 = _read_project_details_response_file(path)
-    if not ret3.succeeded:
-        return failed_util_call_results("Failed to read project details cache file. Reason: '{}'.".format(ret3.message))
-
-    return ret3
-
-def query_project(creds, project_slug):
-    """ Return project information (TransifexProjectDetails tuple) and
-        list of resouce information (TransifexResource tuples).
-
-        This is to get details information of a specific project.
-
-        NOTE:
-        A project details cache file is created if it does not exist.
-        If it does, project details information is read from the cache file.
-    """
-    ret = _get_project_details(creds, project_slug)
-    if not ret.succeeded:
-        return failed_util_call_results("Failed to query project details. Reason: '{}'.".format(ret.message))
-
-    return ret
-
-def _read_resource_details_response_file(path):
-    if not os.path.isfile(path):
-        return failed_util_call_results("Transifex resource details response file not found: '{}'.".format(path))
-
-    ret = _response_file_to_json(path)
-    if not ret.succeeded:
-        return failed_util_call_results(ret.message)
-
-    ret2 = _to_resource_details(ret.output)
-    if ret2.succeeded:
-        return succeeded_util_call_results(ret2.output)
-    else:
-        return failed_util_call_results(ret2.message)
-
-def _get_resource(creds, project_slug, resource_slug):
-    path = _get_resource_cache_path(project_slug, resource_slug)
-    if not os.path.isfile(path):
-        ret = transifex.get_resource_details(project_slug, resource_slug, creds)
-        if not ret.succeeded:
-            return failed_util_call_results("Failed to query resource details from Transifex. Reason: '{}'.".format(ret.message))
-
-        ret2 = _create_response_text_file(ret.response, path)
-        if not ret2.succeeded:
-            return failed_util_call_results("Failed to create resource details cache file. Reason: '{}'.".format(ret2.message))
-
-    ret3 = _read_resource_details_response_file(path)
-    if not ret3.succeeded:
-        return failed_util_call_results("Failed to read resource details cache file. Reason: '{}'.".format(ret3.message))
-
-    return ret3
-
-def query_resource(creds, project_slug, resource_slug):
-    """ Return resouce information (TransifexResourceDetails tuple).
-
-        This is to get details information of a specific resource.
-
-        NOTE:
-        A resource details cache file is created if it does not exist.
-        If it does, resource details information is read from the cache file.
-    """
-    ret = _get_resource(creds, project_slug, resource_slug)
-    if not ret.succeeded:
-        return failed_util_call_results("Failed to query resorce details. Reason: '{}'.".format(ret.message))
-
-    return ret
-
-def _read_translation_strings_details_response_file(path):
-    if not os.path.isfile(path):
-        return failed_util_call_results("Transifex translation strings details response file not found: '{}'.".format(path))
-
-    ret = _response_file_to_json(path)
-    if not ret.succeeded:
-        return failed_util_call_results(ret.message)
-
-    results = []
-    for entry in ret.output:
-        ret2 = _to_translation_string_details(entry)
-        if ret2.succeeded:
-            results.append(ret2.output)
-        else:
-            return failed_util_call_results("Failed to read translation string detail json. Reason: '{}'".format(ret2.message))
-
-    return succeeded_util_call_results(results)
-
-def _get_translation_strings_details(creds, project_slug, resource_slug, language_code):
-    path = _get_translation_strings_details_cache_path(project_slug, resource_slug, language_code)
-    if not os.path.isfile(path):
-        ret = transifex.get_translation_strings_details(project_slug, resource_slug, language_code, creds)
-        if not ret.succeeded:
-            return failed_util_call_results("Failed to query translation string details from Transifex. Reason: '{}'.".format(ret.message))
-
-        ret2 = _create_response_text_file(ret.response, path)
-        if not ret2.succeeded:
-            return failed_util_call_results("Failed to create translation strings details cache file. Reason: '{}'.".format(ret2.message))
-
-    ret3 = _read_translation_strings_details_response_file(path)
-    if not ret3.succeeded:
-        return failed_util_call_results("Failed to read translation strings details cache file. Reason: '{}'.".format(ret3.message))
-
-    return ret3
-
-def _read_source_string_details_response_file(path):
-    if not os.path.isfile(path):
-        return failed_util_call_results("Transifex source string details response file not found: '{}'.".format(path))
-
-    ret = _response_file_to_json(path)
-    if not ret.succeeded:
-        return failed_util_call_results(ret.message)
-
-    ret2 = _to_source_string_details(ret.output)
-    if ret2.succeeded:
-        return succeeded_util_call_results(ret2.output)
-    else:
-        return failed_util_call_results("Failed to read source string detail json. Reason: '{}'".format(ret2.message))
-
-def _get_source_string_details(creds, project_slug, resource_slug, string_details):
-    path = _get_source_string_details_path(project_slug, resource_slug, string_details.key)
-    if not os.path.isfile(path):
-        ret = transifex.get_source_string_details(project_slug, resource_slug, string_details.key, creds)
-        if not ret.succeeded:
-            return failed_util_call_results("Failed to query source string details for key: '{}'. Reason: '{}'.".format(string_details.key, ret.message))
-
-        # ensure soruce directory exists.
-        if not os.path.isdir(_get_source_dir(project_slug, resource_slug)):
-            _setup_dir(_get_source_dir(project_slug, resource_slug))
-
-        ret2 = _create_response_text_file(ret.response, path)
-        if not ret2.succeeded:
-            return failed_util_call_results("Failed to create source string details cache file. Reason: '{}'.".format(ret2.message))
-
-    ret3 = _read_source_string_details_response_file(path)
-    if not ret3.succeeded:
-        return failed_util_call_results("Failed to read source string details cache file. Reason: '{}'.".format(ret3.message))
-
-    return ret3
-
-def query_source_strings_details(creds, project_slug, resource_slug):
-    """ Return list of source string information of a specific resource.
-        A source string information consists of following two tuples.
-            {
-                source: TransifexSoruceStringDetails,
-                translation: TransifexTranslationStringDetails
-            }
-
-        For this case, 'translation' is translation string details for en-US. 
-
-        NOTE:
-        A translation strings details cache file is created as result of this query, if previously
-        cached file does not exist.
-        
-        Source string dtails cahce file(s) is created as a result of this query, if previousely
-        cached file(s) does not exist.
-    """
-    ret = _get_translation_strings_details(creds, project_slug, resource_slug, 'en-US')
-    if not ret.succeeded:
-        return failed_util_call_results("Failed to get translation strings details cache file. Reason: '{}'.".format(ret.message))
-
-    results = []
-    for translation_string in ret.output:
-        ret2 = _get_source_string_details(creds, project_slug, resource_slug, translation_string)
-        if ret2.succeeded:
-            results.append({'source': ret2.output, 'translation': translation_string})
-        else:
-            # return as much as possible, instead of making it error. 
-            results.append({'source': None, 'translation': translation_string})
-
-    return succeeded_util_call_results(results)
-
-def get_all_translation_stats(creds, project_slug, resource_slug):
-    ret = transifex.get_resource_stats(project_slug, resource_slug, creds)
-    if not ret.succeeded:
-        return failed_util_call_results("Failed to get resource stats. Reason: '{}'.".format(ret.message))
-
-    try:
-        data = json.loads(ret.response.text)
-    except ValueError as e:
-        return failed_util_call_results("Failed to parse response text as json. Reason: '{}'.".format(e))
-    else:
-        results = []
-        for lang_key, kv_value in data.iteritems():
-            results.append(TransifexTranslationStats(
-                            project_slug,
-                            resource_slug,
-                            "<rsource name>",
-                            lang_key,
-                            kv_value['last_update'],
-                            kv_value['last_commiter'],
-                            kv_value['reviewed'],
-                            kv_value['reviewed_percentage'],
-                            kv_value['translated_entities'],
-                            kv_value['untranslated_entities'],
-                            kv_value['completed'],
-                            kv_value['translated_words'],
-                            kv_value['untranslated_words']))
-        return succeeded_util_call_results(results)
+        return r
 
 def generate_project_slug(prefix, project_name):
     """ A project slug format is
@@ -486,19 +62,351 @@ def generate_resource_slug(prefix, seeds):
         text = ''.join(seeds).encode('utf-8')
         return '{}{}'.format(prefix, sha1(text).hexdigest())
 
-def get_resource_details(creds, project_slug, resource_slug):
-    ret = transifex.get_resource_details(project_slug, resource_slug, creds)
+'''
+    Platform specific function which will be called by core/translation.py.
+
+
+        Note:
+            Function signature should be similar w/ one in core/translation.py.
+            Return value should be similar w/ one in core/translation.py.
+'''
+
+def _setup_dir(path):
+    if not os.path.isdir(path):
+        try:
+            os.makedirs(path)
+        except OSError as e:
+            logger.error("Failed to create directory: '{}'. Reason: {}".format(path, e))
+        else:
+            if not os.path.isdir(path):
+                logger.error("Created directory does not exist: '{}'.".format(path))
+
+def _create_text_file(path, text):
+    if os.path.isfile(path):
+        os.remove(path)
+       
+    try:
+        if sys.version_info[0:1] == (2,):
+            with codecs.open(path, 'w', encoding='utf-8') as fo:
+                fo.write(text)
+        else:
+            with open(path, 'w') as fo:
+                fo.write(text)
+    except(IOError, OSError) as e:
+        logger.error("Failed to write text file: '{}', Reason: '{}',  Context: '{}'.".format(path, e, text)) 
+    else:
+        pass
+
+# Transifex project (summary).
+#
+# keys                  values
+# -------------------------------------------
+# slug                  project slug
+# name                  project name
+# description           project description
+TransifexProject = namedtuple('TransifexProject', 'slug, name, description')
+
+def get_platform_projects(creds, dest):
+    """ 
+    Return list of project information (TransifexProject tuples).
+    Return None on any errors.    
+
+    Create a text file (specified path by dest param) to log query results.
+
+        NOTE:
+        A projects cache file is created each time this is called (but this
+        function never read the file because accessible projects are based
+        on creds).
+    """
+    ret = transifex.get_projects(creds)
+    if ret.succeeded:
+        try:
+            j = json.loads(ret.response.text)
+            _create_text_file(dest, ret.response.text)
+        except ValueError as e:
+            logger.error("Failed to load response text as json. Reason: '{}', Text: '{}'.".format(e, ret.response.text))
+            return None
+        else:
+            l = []
+            try:
+                for x in j:
+                    l.append(TransifexProject(x['slug'], x['name'], x['description']))
+            except KeyError as e:
+                logger.error("Failed to process Transifex projects json. Reason: '{}', Context: '{}'.".format(e, j))
+                return None
+            else:
+                return l
+    else:
+        logger.error("Failed to get Transifex projects. Reason: '{}'.".format(ret.message))
+        return None
+
+# Transifex resource (summary).
+#
+# slug                  resource slug
+# name                  resource name
+TransifexResource = namedtuple('TransifexResource', 'slug, name')
+
+# Transifex project details. 
+#
+# keys                  values
+# -------------------------------------------
+# slug                  project slug
+# name                  project name
+# description           project description
+# source_language_code  language code of source strings.
+# resources             list of TransifexResource
+TransifexProjectDetails = namedtuple('TransifexProjectDetails', 'slug, name, description, source_language_code, resources')
+
+def get_platform_project_details(creds, dest, pslug):
+    """ 
+    Return details for a specified project as a TransifexProjectDetails tuple.
+    Return None on any errors.
+
+    Write query results as a text file which path is specified by dest param.
+    """
+    ret = transifex.get_project_details(pslug, creds)
+    if ret.succeeded:
+        try:
+            j = json.loads(ret.response.text)
+            _create_text_file(dest, ret.response.text)
+            l = []
+            for x in j['resources']:
+                l.append(TransifexResource(x['slug'], x['name']))
+            r = TransifexProjectDetails(j['slug'], j['name'], j['description'], j['source_language_code'], l)
+        except ValueError as e:
+            logger.error("Failed to load response text as json. Reason: '{}', Text: '{}'.".format(e, ret.response.text))
+            return None
+        except KeyError as e:
+            logger.error("Failed to process Transifex project json. Reason: '{}', Context: '{}'.".format(e, j))
+            return None
+        else:
+            return r
+    else:
+        logger.error("Failed to get Transifex project. Reason: '{}'.".format(ret.message))
+        return None
+
+def read_platform_project_details(creds, dest):
+    if not (os.path.exists(dest) and os.path.getsize(dest) > 0):
+        return None
+    try:
+        with open(dest, 'r') as fi:
+            j = json.load(fi)
+            l = []
+            for x in j['resources']:
+                l.append(TransifexResource(x['slug'], x['name']))
+            r = TransifexProjectDetails(j['slug'], j['name'], j['description'], j['source_language_code'], l)
+    except ValueError as e:
+        logger.error("Failed to load project details file as json. Reason: '{}', File: '{}'.".format(e, dest))
+        return None
+    except KeyError as e:
+        logger.error("Failed to process Transifex project json. Reason: '{}', Context: '{}'.".format(e, j))
+        return None
+    else:
+        return r
+
+# Transifex resource details.
+#
+# slug                          resource slug
+# name                          resource name
+# last_updated                  last updated date for the resource
+# num_strings                   number of strings in the resource
+# num_words                     number of words in the source
+# language_code                 language code of the resource
+# translated_language_codes     list of language code for translations
+TransifexResourceDetails = namedtuple('TransifexResourceDetails', 'slug, name, last_updated, num_strings, num_words, language_code, translated_language_codes')
+
+def get_platform_project_resource_details(creds, dest, pslug, rslug):
+    """ 
+    Return details for a specified project resource as a TransifexResourceDetails tuple.
+    Return None on any errors.
+
+    Write query results as a text file which path is specified by dest param.
+    """
+    ret = transifex.get_resource_details(pslug, rslug, creds)
+    if ret.succeeded:
+        try:
+            j = json.loads(ret.response.text)
+            _create_text_file(dest, ret.response.text)
+            l = []
+            for x in j['available_languages']:
+                l.append(x['code'])
+            r = TransifexResourceDetails(j['slug'], j['name'], j['last_update'], j['total_entities'], j['wordcount'], j['source_language_code'], l)
+        except ValueError as e:
+            logger.error("Failed to load resource details as json. Reason: '{}', Context: '{}'.".format(e, ret.response.text))
+            return None
+        except KeyError as e:
+            logger.error("Failed to process Transifex resource json. Reason: '{}', Context: '{}'.".format(e, j))
+        else:
+            return r
+    else:
+        logger.error("Failed to get Transifex resource details. Reason: '{}'.".format(ret.message))
+        return None
+
+def read_platform_project_resource_details(creds, dest):
+    if not (os.path.exists(dest) and os.path.getsize(dest) > 0):
+        return None
+    try:
+        with open(dest, 'r') as fi:
+            j = json.load(fi)
+            l = []
+            for x in j['available_languages']:
+                l.append(x['code'])
+            r = TransifexResourceDetails(j['slug'], j['name'], j['last_update'], j['total_entities'], j['wordcount'], j['source_language_code'], l)
+    except ValueError as e:
+        logger.error("Failed to load project details file as json. Reason: '{}', File: '{}'.".format(e, dest))
+        return None
+    except KeyError as e:
+        logger.error("Failed to process Transifex project json. Reason: '{}', Context: '{}'.".format(e, j))
+        return None
+    else:
+        return r
+    
+# Transifex translation string details.
+#
+# key                   key for the string.
+# source                source string.
+# translation           translation for the source string.
+# reviewed              true when reviewed, false otherwise.               
+# last_updated          last updated date.
+TransifexTranslationStringDetails = namedtuple('TransifexTranslationStringDetails', 'key, source, translation, reviewed, last_updated')
+
+def get_platform_project_translation_strings(creds, dest, pslug, rslug, lang):
+    """ 
+    Return list of translation string (TransifexTranslationStringDetails tuple) for a specified language of project resource.
+    Return None on any errors.
+
+    Write query results as a text file which path is specified by dest param.
+    """
+    ret = transifex.get_translation_strings_details(pslug, rslug, lang, creds)
+    if ret.succeeded:
+        try:
+            j = json.loads(ret.response.text)
+            _create_text_file(dest, ret.response.text)
+            l = []
+            for x in j:
+                l.append(TransifexTranslationStringDetails(x['key'], x['source_string'], x['translation'], x['reviewed'], x['last_update']))
+        except ValueError as e:
+            logger.error("Failed to load translation strings as json. Reason: '{}', Context: '{}'.".format(e, ret.response.text))
+            return None
+        except KeyError as e:
+            logger.error("Failed to process Transifex translation strings json. Reason: '{}', Context: '{}'.".format(e, j))
+        else:
+            return l
+    else:
+        logger.error("Failed to get Transifex translation strings. Reason: '{}'.".format(ret.message))
+        return None
+
+def read_platform_project_translation_strings(creds, dest):
+    if not (os.path.exists(dest) and os.path.getsize(dest) > 0):
+        return None
+    try:
+        with open(dest, 'r') as fi:
+            j = json.load(fi)
+            l = []
+            for x in j:
+                l.append(TransifexTranslationStringDetails(x['key'], x['source_string'], x['translation'], x['reviewed'], x['last_update']))
+    except ValueError as e:
+        logger.error("Failed to load translation strings file as json. Reason: '{}', File: '{}'.".format(e, dest))
+        return None
+    except KeyError as e:
+        logger.error("Failed to process Transifex translation strings json. Reason: '{}', Context: '{}'.".format(e, j))
+        return None
+    else:
+        return l
+
+def calc_string_hash(string_key):
+    return md5(':'.join([string_key, ""]).encode('utf-8')).hexdigest()
+
+# Transiefx source string details.
+#
+# comment               Instructions attached to the source string.
+# tags                  List of tags attached to the source string.
+TransifexSourceStringDetails = namedtuple('TransifexSourceStringDetails', 'comment, tags')
+
+def get_platform_project_source_string_details(creds, dest, pslug, rslug, string_hash):
+    """ 
+    Return details of a source string (TransifexSourceStringDetails tuple).
+    Return None on any errors.
+
+    Write query results as a text file which path is specified by dest param.
+    """
+    ret = transifex.get_source_string_details(pslug, rslug, string_hash, creds)
+    if ret.succeeded:
+        try:
+            j = json.loads(ret.response.text)
+            _create_text_file(dest, ret.response.text)
+            d = TransifexSourceStringDetails(j['comment'], j['tags'])
+        except ValueError as e:
+            logger.error("Failed to load source string details as json. Reason: '{}', Context: '{}'.".format(e, ret.response.text))
+            return None
+        except KeyError as e:
+            logger.error("Failed to process Transifex source string json. Reason: '{}', Context: '{}'.".format(e, j))
+        else:
+            return d
+    else:
+        logger.error("Failed to get Transifex source string details. Reason: '{}'.".format(ret.message))
+        return None
+
+def read_platform_project_source_string_details(creds, dest):
+    if not (os.path.exists(dest) and os.path.getsize(dest) > 0):
+        return None
+    try:
+        with open(dest, 'r') as fi:
+            j = json.load(fi)
+            r = TransifexSourceStringDetails(j['comment'], j['tags'])
+    except ValueError as e:
+        logger.error("Failed to load source string file as json. Reason: '{}', File: '{}'.".format(e, dest))
+        return None
+    except KeyError as e:
+        logger.error("Failed to process Transifex source string json. Reason: '{}', Context: '{}'.".format(e, j))
+        return None
+    else:
+        return r
+
+# Transifex translation stats for a resource.
+#
+# project_slug                  project slug
+# resource_slug                 resource slug
+# name                          resource name
+# language_code                 language code of this stats
+# last_updated                  last updated date for the resource
+# last_updated_by               who last updated the resource
+# num_reviewed_strings          number of reviewed strings.
+# percentage_reviewed_strings   percentage of reviewed strings. e.g. '80%'
+# num_translated_strings        number of translated strings.
+# num_untranslated_strings      number of untranslated strings.
+# percentage_translated_strings percentage of translated strings. e.g. '80%'
+# num_translated_words          number of translated words.
+# num_untranslated_words        number of untranslated words.
+TransifexTranslationStats = namedtuple('TransifexTranslationStats', 'project_slug, resource_slug, name, language_code, last_updated, last_updated_by, num_reviewed_strings, percentage_reviewed_strings, num_translated_strings, num_untranslated_strings, percentage_translated_strings, num_translated_words, num_untranslated_words')
+
+def get_all_translation_stats(creds, project_slug, resource_slug):
+    ret = transifex.get_resource_stats(project_slug, resource_slug, creds)
     if not ret.succeeded:
-        return failed_util_call_results("Failed to query resource details from Transifex. Reason: '{}'.".format(ret.message))
+        logger.error("Failed to get resource stats. Reason: '{}'.".format(ret.message))
+        return None
 
     try:
         data = json.loads(ret.response.text)
     except ValueError as e:
-        return failed_util_call_results("Failed to parse response text as json. Reason: '{}'.".format(e))
+        logger.error("Failed to parse response text as json. Reason: '{}'.".format(e))
+        return None
     else:
-        ret2 = _to_resource_details(data)
-        if ret2.succeeded:
-            return succeeded_util_call_results(ret2.output)
-        else:
-            return failed_util_call_results(ret2.message)
+        results = []
+        for lang_key, kv_value in data.iteritems():
+            results.append(TransifexTranslationStats(
+                            project_slug,
+                            resource_slug,
+                            "<rsource name>",
+                            lang_key,
+                            kv_value['last_update'],
+                            kv_value['last_commiter'],
+                            kv_value['reviewed'],
+                            kv_value['reviewed_percentage'],
+                            kv_value['translated_entities'],
+                            kv_value['untranslated_entities'],
+                            kv_value['completed'],
+                            kv_value['translated_words'],
+                            kv_value['untranslated_words']))
+        return results
 

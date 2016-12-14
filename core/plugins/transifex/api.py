@@ -1,6 +1,6 @@
 import requests
 from requests.exceptions import RequestException, HTTPError
-from hashlib import md5
+#from hashlib import md5
 
 from core.plugins.results import succeeded_rest_api_call_results, failed_rest_api_call_results 
  
@@ -64,11 +64,11 @@ def get_translation_strings_details(project_slug, resource_slug, language_code, 
     else:
         return succeeded_rest_api_call_results(r)
 
-def get_string_hash(source_string_key):
-    return md5(':'.join([source_string_key, ""]).encode('utf-8')).hexdigest()
+#def get_string_hash(source_string_key):
+#    return md5(':'.join([source_string_key, ""]).encode('utf-8')).hexdigest()
 
-def get_source_string_details(project_slug, resource_slug, source_string_key, creds):
-    string_hash = get_string_hash(source_string_key)
+def get_source_string_details(project_slug, resource_slug, string_hash, creds):
+#    string_hash = get_string_hash(source_string_key)
     url = 'http://www.transifex.com/api/2/project/' + project_slug + '/resource/' + resource_slug + '/source/' + string_hash 
     try:
         r = requests.get(url, auth=(creds.username, creds.userpasswd))

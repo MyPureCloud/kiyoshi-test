@@ -37,27 +37,6 @@ class IndexPageHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("index.html")
 
-#class ExecJobHandler(tornado.web.RequestHandler):
-#    def post(self, param):
-#        global job
-#        job_id = urllib.unquote(param)
-#        c = job.get_configuration(id=job_id)
-#        if c:
-#            if c.class_name == 'ResourceUploaderJob':
-#                # FIXME --- find exiting job via apscheduler, instead of creating a new one.
-#                SchedulerJob(c).execute()
-#            elif c.class_name == 'TranslationUploaderJob':
-#                # FIXME --- find exiting job via apscheduler, instead of creating a new one.
-#                SchedulerJob(c).execute()
-#            elif c.class_name == 'AuxialryJob':
-#                logger.error("NIY: ExecJobHandler() for AuxialryJob") 
-#            else:
-#                logger.error("Unknown job class: '{}'.".format(c.class_name))
-#        else:
-#            logger.error("Faild to get configuration for job. id: '{}'.".format(job_id))
-#
-#        # TODO --- respond exec results
-
 class ScheduleServer():
     def __init__(self):
         tornado.options.parse_command_line()
@@ -66,43 +45,68 @@ class ScheduleServer():
                     (r'/', IndexPageHandler),
 
                     # --- PROJECT ---  #
+                    # List of project summary.
                     (r'/api/v0/projects', apih.ListProjectSummaryHandler),
-                    (r'/api/v0/project/([^/]+)/details', apih.ProjectDetailsHandler), # project id
-                    (r'/api/v0/project/([^/]+)/resource/details', apih.ProjectResourceDetailsHandler), # project id
-                    (r'/api/v0/project/([^/]+)/translation/status', apih.ProjectTranslationStatusHandler), # project id
+                    # Details of a project. Args: project id
+                    (r'/api/v0/project/([^/]+)/details', apih.ProjectDetailsHandler),
+                    # List of details of resources. Args: project id
+                    (r'/api/v0/project/([^/]+)/resource/details', apih.ProjectResourceDetailsHandler),
+                    # List of language status. Args: project id 
+                    (r'/api/v0/project/([^/]+)/translation/status', apih.ProjectTranslationStatusHandler),
 
                     # --- JOB --- #
+                    # List of jobs.
                     (r'/api/v0/jobs', apih.ListJobSummaryHandler),
-                    (r'/api/v0/job/([^/]+)', apih.JobSummaryHandler), # job id
-                    (r'/api/v0/job/([^/]+)/exec', apih.JobExecutionHandler), # job id
-                    (r'/api/v0/job/([^/]+)/details', apih.JobDetailsHandler), # job id
-                    (r'/api/v0/job/([^/]+)/resource/slugs', apih.JobResourceSlugsHandler), # job id
-                    (r'/api/v0/job/([^/]+)/translation/slugs', apih.JobTranslationSlugsHandler), # job id
-                    (r'/api/v0/job/([^/]+)/sync/status', apih.JobSyncStatusHandler), # job id
-                    (r'/api/v0/job/([^/]+)/exec/status', apih.JobExecStatusHandler), # job id
+                    # Summary of a job. Args: job id
+                    (r'/api/v0/job/([^/]+)', apih.JobSummaryHandler),
+                    # Execute a job. Args: job id
+                    (r'/api/v0/job/([^/]+)/exec', apih.JobExecutionHandler),
+                    # Details of a job. Args: job id
+                    (r'/api/v0/job/([^/]+)/details', apih.JobDetailsHandler),
+                    # List of resource file path and slug. Args: job id 
+                    (r'/api/v0/job/([^/]+)/resource/slugs', apih.JobResourceSlugsHandler),
+                    # List of resource name (in translation platform) and slug. Args: job id
+                    (r'/api/v0/job/([^/]+)/translation/slugs', apih.JobTranslationSlugsHandler),
+                    # Sync status (only for ResourceUploaderJob or TranslationUploaderJob). Args: job id
+                    (r'/api/v0/job/([^/]+)/sync/status', apih.JobSyncStatusHandler),
+                    # Job execution status. Args: job id
+                    (r'/api/v0/job/([^/]+)/exec/status', apih.JobExecStatusHandler),
 
                     # maybe /job/(^/]+)/log/context/3  (limit = 3) might be useful
 
                     # --- CONFIGURATION --- #
                     # not using now but keep for a while   
-                    #(r'/api/v0/config/([^/]+)/([^/]+)', apih.ConfigurationHandler), # job id, 'key' in config file
-
-                    # NIY (r'/api/v0/config/project/([^/]+)', apih.ProjectConfigurationHandler), # project id
-                    # NIY (r'/api/v0/config/job/([^/]+)', apih.JobConfigurationHandler), # job id
-                    (r'/api/v0/config/resource/([^/]+)', apih.ResourceConfigurationHandler), # resource config filename
-                    (r'/api/v0/config/translation/([^/]+)', apih.TranslationConfigurationHandler), # translation config filename
+                    # (r'/api/v0/config/([^/]+)/([^/]+)', apih.ConfigurationHandler), # job id, 'key' in config file
+                    # Contents of project configuration file. Args: project id
+                    # (r'/api/v0/config/project/([^/]+)', apih.ProjectConfigurationHandler),
+                    # Contents of job configuration file. Args: job id
+                    # (r'/api/v0/config/job/([^/]+)', apih.JobConfigurationHandler),
+                    # Contents of resource configuration file. Args: resource configuration file name
+                    (r'/api/v0/config/resource/([^/]+)', apih.ResourceConfigurationHandler),
+                    # Contents of translation configuration file. Args: translation configuration file name
+                    (r'/api/v0/config/translation/([^/]+)', apih.TranslationConfigurationHandler),
 
                     #--- LOG --- #
-                    (r'/api/v0/log/([^/]+)/context', apih.LogContextHandler), # log path
+                    # Log context. Args: log path
+                    (r'/api/v0/log/([^/]+)/context', apih.LogContextHandler),
 
                     # --- RESOURCE REPOSITORY ---#
-                    #(r'/api/v0/resource/([^/]+)/repositories', apih.ListResourceRepositoriessHandler), # platform name
+                    # List of repositories. Args: platform name
+                    #(r'/api/v0/resource/([^/]+)/repositories', apih.ListResourceRepositoriessHandler),
 
-                    #--- TRANSLATION REPOSITORY --- # 
-                    (r'/api/v0/translation/([^/]+)/projects', apih.ListTranslationProjectsHandler), # platform name
-                    (r'/api/v0/translation/([^/]+)/project/([^/]+)/details', apih.TranslationProjectDetailsHandler), # platform name, project id
-                    (r'/api/v0/translation/([^/]+)/project/([^/]+)/resource/([^/]+)/details', apih.TranslationResourceDetailsHandler), # platform name, project id, resource id
-                    (r'/api/v0/translation/([^/]+)/project/([^/]+)/translation/([^/]+)/details', apih.TranslationTranslationDetailsHandler) # platform name, project id, resource id
+                    #--- TRANSLATION REPOSITORY --- #
+                    # List of projects. Args: platform name
+                    (r'/api/v0/translation/([^/]+)/projects', apih.ListTranslationProjectsHandler),
+                    # Project details. Args: platform name, project id
+                    (r'/api/v0/translation/([^/]+)/project/([^/]+)/details', apih.TranslationProjectDetailsHandler),
+                    # Resource details. Args: platform name, project id, resource id
+                    (r'/api/v0/translation/([^/]+)/project/([^/]+)/resource/([^/]+)/details', apih.TranslationResourceDetailsHandler),
+                    # All strings for a language. Args: platform name, project id, resource id, language code
+                    (r'/api/v0/translation/([^/]+)/project/([^/]+)/resource/([^/]+)/translation/([^/]+)/strings', apih.TranslationTranslationStringsHandler),
+                    # Details for a translation string. Args: platform name, project id, resource id, source string id
+                    # (r'/api/v0/translation/([^/]+)/project/([^/]+)/resource/([^/]+)/translation/([^/]+)/details', apih.TranslationTranslationStringDetailsHandler),
+                    # Details for a source string. Args: platform name, project id, resource id, source string id (key)
+                    (r'/api/v0/translation/([^/]+)/project/([^/]+)/resource/([^/]+)/source/([^/]+)/details', apih.TranslationSourceStringDetailsHandler)
                 ],
                 template_path = os.path.join(os.path.dirname(__file__), 'templates'),
                 static_path = os.path.join(os.path.dirname(__file__), 'static')

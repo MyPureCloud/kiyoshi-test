@@ -1,0 +1,49 @@
+{# Displays list of projects. #}
+{# Expecting parameters  #}
+{#      platform        Translation platform name #}
+{#      details         Project details #}
+{#      resources       List of resource details #}
+<!DOCTYPE html>
+{% import urllib %}
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <link href="{{ static_url("css/tpa.css") }}" rel="stylesheet" type="text/css">
+        <title>TPA System Manager</title>
+    </head>
+    <body>
+        <div id="body">
+            <h1>Translation Project Details</h1>
+            <p>
+            <table id="logs">
+                <tr><th>Name (slug)</th><td>{{details['name']}} ({{details['slug']}})</td></tr>
+                <tr><th>Description</th><td>{{details['description']}}</td></tr>
+            </table>
+            </p>
+            <h2>Resources</h2>
+            <p>
+            <table id="logs">
+                <tr><th>Slug<br>(Name)</th><th>Strings (words)</th><th>Updated on</th><th>Languages</th><th></th></tr>
+                    {% set total_strings = 0 %}
+                    {% set total_words = 0 %}
+                    {% for x in resources %}
+                        {% set total_strings += x['num_strings'] %}
+                        {% set total_words += x['num_words'] %}
+                        {% if x['translated_language_codes'] %}
+                            {% set a = [] %}
+                            {% for lang in x['translated_language_codes'] %}
+                                {% set a.append("<a href=\"/translation/{}/project/{}/resource/{}/translation/{}/strings\">{}</a>".format(platform, details['slug'], x['slug'], lang, lang)) %} 
+                                {% set links = ','.join(a) %}
+                            {% end %}
+                            {% set url = "/translation/{}/project/{}/resource/{}/source/strings".format(platform, details['slug'], x['slug']) %}
+                            <tr><td>{{x['slug']}}<br>({{x['name']}})</td><td>{{x['num_strings']}} ({{x['num_words']}})</td><td>{{x['last_updated']}}</td><td>{% raw links %}</td><td><a href="{{url}}">Source Details</a></td></tr>
+                        {% end %}
+                    {% end %}
+                    <tr><th>Total</th><th>{{total_strings}} ({{total_words}})</th><th></th><th></th><th></th></tr>
+
+            </table>
+            </p>
+        </div>
+    </body>
+</html>
+                                       

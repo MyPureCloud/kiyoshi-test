@@ -20,100 +20,61 @@ from apscheduler.executors.pool import ProcessPoolExecutor
 
 import settings
 
-def _get_all_jobs():
-    url = settings.TPA_API_JOBS
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-    except (RequestException, HTTPError) as e:
-        logger.error("Failed API call: '{}', Reason: '{}'.".format(url, e))
-        return None
-    else:
-        try:
-            j = json.loads(r.text)
-            logger.info(r.text)
-        except ValueError as e:
-            logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
-            return None
-        else:
-            return j 
 
 class IndexHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("index.html")
 
+def _call_api(url):
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+        j = json.loads(r.text)
+    except (RequestException, HTTPError) as e:
+        logger.error("Failed API call: '{}', Reason: '{}'.".format(url, e))
+        return None 
+    except ValueError as e:
+        logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
+        return None 
+    else:
+        logger.info(r.text)
+        return j 
+
+def _call_api_and_render(handler, url, html_template, error_message):
+    j = _call_api(url)
+    if j != None:
+        handler.render(html_template, data=j)
+    else:
+        handler.render('fatal_error.html', summary=error_message, details="")
+
 class ProjectDetailsHandler(tornado.web.RequestHandler):
     def get(self, param):
         project_id = urllib.unquote(param)
         url = '{}/{}/details'.format(settings.TPA_API_PROJECT, project_id)
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-        except (RequestException, HTTPError) as e:
-            message = "Failed API call: '{}', Reason: '{}'.".format(url, e)
-            logger.error(message)
-            self.render('fatal_error.html', summary="Failed to obtain project details.", details=message)
-        else:
-            try:
-                j = json.loads(r.text)
-                logger.info(r.text)
-            except ValueError as e:
-                message = "Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text)
-                logger.error(message)
-                self.render('fatal_error.html', summary="Failed to obtain project details.", details=message)
-            else:
-                self.render("project.html", project=j)
+        _call_api_and_render(self, url, 'project.html', "Failed to obtain project details.")
 
 class ListProjectsHandler(tornado.web.RequestHandler):
     def get(self):
         url = settings.TPA_API_PROJECTS
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-        except (RequestException, HTTPError) as e:
-            message = "Failed API call: '{}', Reason: '{}'.".format(url, e)
-            logger.error(message)
-            self.render('fatal_error.html', summary="Failed to obtain project listings.", details=message)
-        else:
-            try:
-                j = json.loads(r.text)
-                logger.info(r.text)
-            except ValueError as e:
-                message = "Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text)
-                logger.error(message)
-                self.render('fatal_error.html', summary="Failed to obtain project listings.", details=message)
-            else:
-                self.render("projects.html", projects=j)
+        _call_api_and_render(self, url, 'projects.html', "Failed to obtain project listings.")
 
 class JobDetailsHandler(tornado.web.RequestHandler):
     def get(self, param):
         job_id = urllib.unquote(param)
         url = '{}/{}/details'.format(settings.TPA_API_JOB, job_id)
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-        except (RequestException, HTTPError) as e:
-            message = "Failed API call: '{}', Reason: '{}'.".format(url, e)
-            logger.error(message)
-            self.render('fatal_error.html', summary="Failed to obtain job details.", details=message)
-        else:
-            try:
-                j = json.loads(r.text)
-                logger.info(r.text)
-            except ValueError as e:
-                message = "Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text)
-                logger.error(message)
-                self.render('fatal_error.html', summary="Failed to obtain job details.", details=message)
-            else:
-                self.render("job.html", job=j)
+        _call_api_and_render(self, url, 'job.html', "Failed to obtain job details.")
+
+def _get_all_jobs():
+    url = settings.TPA_API_JOBS
+    return  _call_api(url)
 
 class ListJobsHandler(tornado.web.RequestHandler):
     def get(self):
         j = _get_all_jobs()
-        if j == None:
-            self.render('fatal_error.html', summary="Failed to obtain job listings.", details="")
+        if j != None:
+            self.render("jobs.html", data=j)
         else:
-            self.render("jobs.html", jobs=j)
+            self.render('fatal_error.html', summary="Failed to obtain job listings.", details="")
 
 class DashboardHandler(tornado.web.RequestHandler):
     def get(self):
@@ -124,146 +85,36 @@ class DashboardHandler(tornado.web.RequestHandler):
             lists = [] 
             for x in jobs:
                 url = "{}/{}/exec/status".format(settings.TPA_API_JOB, x['id'])
-                try:
-                    r = requests.get(url)
-                    r.raise_for_status()
-                except (RequestException, HTTPError) as e:
-                    logger.error("Failed API call: '{}', Reason: '{}'.".format(url, e))
-                else:
-                    try:
-                        j = json.loads(r.text)
-                    except ValueError as e:
-                        logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
-                    else:
-                        logger.info(r.text)
-                        if j:
-                            lists.append(j[0]) # only one exec stata is the retured array. 
-
+                j = _call_api(url)
+                if j:
+                    lists.append(j[0]) # only one exec stata is the retured array. 
             self.render("dashboard.html", data=lists)
-
-class XXXXXXXXXXXXLogContextHandler(tornado.web.RequestHandler):
-    def get(self, param):
-        log_path = urllib.quote(param, safe='')
-        url = '{}/{}/context'.format(settings.TPA_API_LOG, log_path)
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-        except (RequestException, HTTPError) as e:
-            message = "Failed API call: '{}', Reason: '{}'.".format(url, e)
-            logger.error(message)
-            self.render('fatal_error.html', summary="Failed to obtain log context.", details=message)
-        else:
-            try:
-                j = json.loads(r.text)
-                logger.info(r.text)
-            except ValueError as e:
-                message = "Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text)
-                logger.error(message)
-                self.render('fatal_error.html', summary="Failed to obtain log context.", details=message)
-            else:
-                self.render("log.html", path=param, data=j)
 
 class ResourceConfigHandler(tornado.web.RequestHandler):
     def get(self, param):
         filename = urllib.quote(param, safe='')
         url = '{}/resource/{}'.format(settings.TPA_API_CONFIG, filename)
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-        except (RequestException, HTTPError) as e:
-            message = "Failed API call: '{}', Reason: '{}'.".format(url, e)
-            logger.error(message)
-            self.render('fatal_error.html', summary="Failed to obtain resource config file context.", details=message)
-        else:
-            try:
-                j = json.loads(r.text)
-                logger.info(r.text)
-            except ValueError as e:
-                message = "Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text)
-                logger.error(message)
-                self.render('fatal_error.html', summary="Failed to obtain resource config context.", details=message)
-            else:
-                self.render("resource_config.html", data=j)
+        _call_api_and_render(self, url, 'resource_config.html', "Failed to obtain resource configuration context.")
 
 class TranslationConfigHandler(tornado.web.RequestHandler):
     def get(self, param):
         filename = urllib.quote(param, safe='')
         url = '{}/translation/{}'.format(settings.TPA_API_CONFIG, filename)
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-        except (RequestException, HTTPError) as e:
-            message = "Failed API call: '{}', Reason: '{}'.".format(url, e)
-            logger.error(message)
-            self.render('fatal_error.html', summary="Failed to obtain translation config file context.", details=message)
-        else:
-            try:
-                j = json.loads(r.text)
-                logger.info(r.text)
-            except ValueError as e:
-                message = "Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text)
-                logger.error(message)
-                self.render('fatal_error.html', summary="Failed to obtain translation config context.", details=message)
-            else:
-                self.render("translation_config.html", data=j)
+        _call_api_and_render(self, url, 'translation_config.html', "Failed to obtain translation configuration context.")
 
 class LogContextHandler(tornado.web.RequestHandler):
     def get(self, param):
         log_path = urllib.quote(param, safe='')
         url = '{}/{}/context'.format(settings.TPA_API_LOG, log_path)
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-        except (RequestException, HTTPError) as e:
-            message = "Failed API call: '{}', Reason: '{}'.".format(url, e)
-            logger.error(message)
-            self.render('fatal_error.html', summary="Failed to obtain log context.", details=message)
-        else:
-            try:
-                j = json.loads(r.text)
-                logger.info(r.text)
-            except ValueError as e:
-                message = "Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text)
-                logger.error(message)
-                self.render('fatal_error.html', summary="Failed to obtain log context.", details=message)
-            else:
-                self.render("log.html", path=param, data=j)
+        _call_api_and_render(self, url, 'log.html', "Failed to obtain log context.")
 
 def _get_resource_slugs(job_id):
     url = '{}/{}/resource/slugs'.format(settings.TPA_API_JOB, job_id)
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-    except (RequestException, HTTPError) as e:
-        logger.error("Failed API call: '{}', Reason: '{}'.".format(url, str(e)))
-        return None
-    else:
-        try:
-            j = json.loads(r.text)
-            logger.info(r.text)
-        except ValueError as e:
-            logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
-            return None 
-        else:
-            return j
+    return _call_api(url)
 
 def _get_translation_slugs(job_id):
     url = '{}/{}/translation/slugs'.format(settings.TPA_API_JOB, job_id)
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-    except (RequestException, HTTPError) as e:
-        logger.error("Failed API call: '{}', Reason: '{}'.".format(url, str(e)))
-        return None
-    else:
-        try:
-            j = json.loads(r.text)
-            logger.info(r.text)
-        except ValueError as e:
-            logger.error("Failed to parse API response. Reason: '{}', Response:'{}'.".format(e, r.text))
-            return None 
-        else:
-            return j
+    return _call_api(url)
 
 class CheckSlugsHandler(tornado.web.RequestHandler):
     def get(self, param):
@@ -294,6 +145,90 @@ class CheckSlugsHandler(tornado.web.RequestHandler):
         else:
             self.render('fatal_error.html', summary="Failed to obtain job resource slugs.", details="")
 
+class ListTranslationProjects(tornado.web.RequestHandler):
+    def get(self, arg):
+        platform = urllib.unquote(arg)
+        url = '{}/{}/projects'.format(settings.TPA_API_TRANSLATION, platform)
+        j = _call_api(url)
+        if j != None:
+            self.render("translation_projects.html", platform=platform, projects=j)
+        else:
+            self.render('fatal_error.html', summary="Failed to obtain translation project listings.", details="")
+
+def _get_translation_project_resource_details(base_url, resources):
+    l = []
+    for x in resources:
+        url = '{}/resource/{}/details'.format(base_url, x['slug'])
+        j = _call_api(url)
+        if j != None:
+            l.append(j)
+    return l
+
+def _get_translation_platform_project_details(platform, pslug):
+    url = '{}/{}/project/{}/details'.format(settings.TPA_API_TRANSLATION, platform, pslug)
+    return _call_api(url)
+
+class TranslationProjectDetails(tornado.web.RequestHandler):
+    """ Returns project details and details for each resource in the project. """
+    def get(self, arg1, arg2):
+        platform = urllib.unquote(arg1)
+        pslug = urllib.unquote(arg2)
+        j = _get_translation_platform_project_details(platform, pslug)
+        if j != None:
+            base_url = '{}/{}/project/{}'.format(settings.TPA_API_TRANSLATION, platform, pslug)
+            l = _get_translation_project_resource_details(base_url, j['resources'])
+            self.render("translation_project_details.html", platform=platform, details=j, resources=l)
+        else:
+            self.render('fatal_error.html', summary="Failed to obtain translation project details.", details="")
+
+def _get_translation_platform_translation_strings(platform, pslug, rslug, lang):
+    url = '{}/{}/project/{}/resource/{}/translation/{}/strings'.format(settings.TPA_API_TRANSLATION, platform, pslug, rslug, lang)
+    return _call_api(url)
+
+class TranslationProjectTranslationStrings(tornado.web.RequestHandler):
+    """ Returns summary of translated strings for specified language of resource in the project. """
+    def get(self, arg1, arg2, arg3, arg4):
+        platform = urllib.unquote(arg1)
+        pslug = urllib.unquote(arg2)
+        rslug = urllib.unquote(arg3)
+        lang = urllib.unquote(arg4)
+        j = _get_translation_platform_translation_strings(platform, pslug, rslug, lang)
+        if j != None:
+            self.render("translation_project_translation_strings.html", data=j)
+        else:
+            self.render('fatal_error.html', summary="Failed to obtain translation project translation strings.", details="")
+
+def _get_translation_platform_source_details(platform, pslug, rslug, source_key):
+    url = '{}/{}/project/{}/resource/{}/source/{}/details'.format(settings.TPA_API_TRANSLATION, platform, pslug, rslug, source_key)
+    return _call_api(url)
+
+class TranslationProjectSourceStringDetails(tornado.web.RequestHandler):
+    """ Returns list of details of source string for specified resource in the project. """
+    def get(self, arg1, arg2, arg3):
+        platform = urllib.unquote(arg1)
+        pslug = urllib.unquote(arg2)
+        rslug = urllib.unquote(arg3)
+        p = _get_translation_platform_project_details(platform, pslug)
+        if p:
+            l = _get_translation_platform_translation_strings(platform, pslug, rslug, p['source_language_code'])
+            if l:
+                r = []
+                for x in l:
+                    j = _get_translation_platform_source_details(platform, pslug, rslug, x['key'])
+                    if j:
+                        if platform == 'transifex':
+                            j['source'] = x['source']
+                        else:
+                            pass
+                        r.append(j)
+                    else:
+                        pass
+                self.render("translation_project_source_strings.html", data=r)
+            else:
+                self.render('fatal_error.html', summary="Failed to obtain translation project source string details.", details="")
+        else:
+            self.render('fatal_error.html', summary="Failed to obtain translation project source string details.", details="")
+
 class SystemManagerServer():
     def __init__(self):
         self._jobs = []
@@ -301,15 +236,43 @@ class SystemManagerServer():
         application = tornado.web.Application(
                 [
                     (r'/', IndexHandler),
-                    (r'/config/resource/([^/]+)', ResourceConfigHandler), # resource config filename
-                    (r'/config/translation/([^/]+)', TranslationConfigHandler), # translation config filename
+                    # --- * CONFIGURATION * ---
+                    # Context of resource configuration file. Args: resource configuration filename
+                    (r'/config/resource/([^/]+)', ResourceConfigHandler),
+                    # Context of translation configuration file. Args: translation configuration filename
+                    (r'/config/translation/([^/]+)', TranslationConfigHandler),
+
+                    # --- * DASHBOARD * ---
+                    # Dashboard.
                     (r'/dashboard', DashboardHandler),
+
+                    # --- * JOB * ---
+                    # List of jobs.
                     (r'/jobs', ListJobsHandler),
-                    (r'/job/([^/]+)/check/slugs', CheckSlugsHandler), # job id
-                    (r'/job/([^/]+)/details', JobDetailsHandler), # job id
-                    (r'/log/([^/]+)/context', LogContextHandler), # job id
+                    # List resource slugs for resources in a project. Args: job id
+                    (r'/job/([^/]+)/check/slugs', CheckSlugsHandler),
+                    # Details of a job. Args: job id
+                    (r'/job/([^/]+)/details', JobDetailsHandler),
+                    # Context of most recent log for a job. Args: job id
+
+                    # --- * LOG * ---
+                    (r'/log/([^/]+)/context', LogContextHandler),
+                    # List of projects.
+
+                    # --- * PROJECT * ---
                     (r'/projects', ListProjectsHandler),
-                    (r'/project/([^/]+)/details', ProjectDetailsHandler) # project id
+                    # Details of a project. Args: project id
+                    (r'/project/([^/]+)/details', ProjectDetailsHandler),
+                    # List of projects in translation platform (e.g. Transifex projects) Args: translation platform name
+  
+                    # --- * TRANSLATION PLATFORM * ---
+                    (r'/translation/([^/]+)/projects', ListTranslationProjects),
+                    # Details of a project in translation platform. Args: translation platform name, project slag
+                    (r'/translation/([^/]+)/project/([^/]+)/details', TranslationProjectDetails),
+                    # List of all translation strings for a resource of a language. Args: translation platform name, project slug, resource slug, langauge code
+                    (r'/translation/([^/]+)/project/([^/]+)/resource/([^/]+)/translation/([^/]+)/strings', TranslationProjectTranslationStrings),
+                    # Details of a source string. Args: translation platform name, project slug, resource slug
+                    (r'/translation/([^/]+)/project/([^/]+)/resource/([^/]+)/source/strings', TranslationProjectSourceStringDetails)
                 ],
                 template_path = os.path.join(os.path.dirname(__file__), '.', 'templates'),
                 static_path = os.path.join(os.path.dirname(__file__), '.', 'static')

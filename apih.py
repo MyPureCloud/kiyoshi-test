@@ -418,56 +418,109 @@ class TranslationConfigurationHandler(tornado.web.RequestHandler):
             self.finish("<html><body>Failed to get translation configuration file context. filename '{}'.</body></html>".format(filename))
 
 class ListTranslationProjectsHandler(tornado.web.RequestHandler):
-#    def get(self):
-#        creds = tpa.get_transifex_creds()
-#        ret = transifex.query_projects(creds)
-#        if ret.succeeded:
-#            projects = ret.output
-#        else:
-#            logger.error("query_projects() failed. Reason: '{}'".format(ret.message))
-#            projects = []
-#        self.render('transifex_projects.html', projects=projects)
-    pass
+    """ Return list of summary of projects in translation repository. """
+    def get(self, arg): # translation platform name
+        platform = urllib.unquote(arg)
+        l = translation.get_platform_projects(platform)
+        if l == None:
+            self.set_status(400)
+            self.finish("<html><body>Failed to obtain translation project listings for: '{}'.</body></html>".format(str(platform)))
+        else:
+            try:
+                a = []
+                for o in l:
+                    a.append(translation.to_dict(o))
+                j = json.dumps(a)
+            except ValueError as e:
+                self.set_status(500)
+                self.finish("<html><body>Failed to json.load(). Reason: '{}'.</body></html>".format(str(e)))
+            else:
+                self.finish(j)
 
 class TranslationProjectDetailsHandler(tornado.web.RequestHandler):
-#    def get(self, param):
-#        s = urllib.unquote(param)
-#        platform_type = s.split(':')[0] # not used
-#        project_slug = s.split(':')[1]
-#
-#        creds = tpa.get_transifex_creds()
-#        ret = transifex.query_project(creds, project_slug)
-#        if ret.succeeded:
-#            project = ret.output
-#            resources = []
-#            for resource in project.resources:
-#                ret = transifex.query_resource(creds, project_slug, resource.slug)
-#                if ret.succeeded:
-#                    resources.append(ret.output)
-#            project_and_resources = {'project': project, 'resources': resources}
-#        else:
-#            logger.error("query_project() failed. Reason: '{}'".format(ret.message))
-#            project_and_resources = {'project': None, 'resources': None}
-#        self.render('transifex_project.html', data=project_and_resources)
-    pass
+    """ Return details of a project in translation repository. """
+    def get(self, arg1, arg2):
+        platform = urllib.unquote(arg1)
+        pslug = urllib.unquote(arg2)
+        d = translation.get_platform_project_details(platform, pslug)
+        if d == None:
+            self.set_status(400)
+            self.finish("<html><body>Failed to obtain translation project details. Platform: '{}', Slug: '{}'.</body></html>".format(platform, pslug))
+        else:
+            try:
+                j = json.dumps(translation.to_dict(d))
+            except ValueError as e:
+                self.set_status(500)
+                self.finish("<html><body>Failed to json.load(). Reason: '{}'.</body></html>".format(str(e)))
+            else:
+                self.finish(j)
 
 class TranslationResourceDetailsHandler(tornado.web.RequestHandler):
-#    def get(self, param):
-#        s = urllib.unquote(param)
-#        project_slug = s.split(':')[0]
-#        resource_slug = s.split(':')[1]
-#        project_name = s.split(':')[2]
-#        resource_name = s.split(':')[3]
-#        creds = tpa.get_transifex_creds()
-#        ret = transifex.query_source_strings_details(creds, project_slug, resource_slug)
-#        if ret.succeeded:
-#            strings = ret.output
-#        else:
-#            logger.error("query_source_strings_detail() failed. Reason: '{}'".format(ret.message))
-#            strings = []
-#        self.render('transifex_resource.html', project_name=project_name, resource_name=resource_name, strings=strings)
-    pass
+    """ Return resource details for a resource in translation repository project. """
+    def get(self, arg1, arg2, arg3):
+        platform = urllib.unquote(arg1)
+        pslug = urllib.unquote(arg2)
+        rslug = urllib.unquote(arg3)
+        d = translation.get_platform_project_resource_details(platform, pslug, rslug)
+        if d == None:
+            self.set_status(400)
+            self.finish("<html><body>Failed to obtain translation project resource details. Platform: '{}', Pslug: '{}', Rslug: '{}'.</body></html>".format(platform, pslug, rslug))
+        else:
+            try:
+                j = json.dumps(translation.to_dict(d))
+            except ValueError as e:
+                self.set_status(500)
+                self.finish("<html><body>Failed to json.load(). Reason: '{}'.</body></html>".format(str(e)))
+            else:
+                self.finish(j)
 
-class TranslationTranslationDetailsHandler(tornado.web.RequestHandler):
-    pass
+class TranslationTranslationStringsHandler(tornado.web.RequestHandler):
+    """ Return list of translation strings for language of a resource in translation repository project. """
+    def get(self, arg1, arg2, arg3, arg4):
+        platform = urllib.unquote(arg1)
+        pslug = urllib.unquote(arg2)
+        rslug = urllib.unquote(arg3)
+        lang = urllib.unquote(arg4)
+        d = translation.get_platform_project_translation_strings(platform, pslug, rslug, lang)
+        if d == None:
+            self.set_status(400)
+            self.finish("<html><body>Failed to obtain translation project translation strings. Platform: '{}', Pslug: '{}', Rslug: '{}', Lang: '{}'.</body></html>".format(platform, pslug, rslug, lang))
+        else:
+            try:
+                l = []
+                for x in d:
+                    l.append(translation.to_dict(x))
+                j = json.dumps(l)
+            except ValueError as e:
+                self.set_status(500)
+                self.finish("<html><body>Failed to json.load(). Reason: '{}'.</body></html>".format(str(e)))
+            else:
+                self.finish(j)
+
+class TranslationSourceStringDetailsHandler(tornado.web.RequestHandler):
+    """ Return details for a source string in translation repository project. """
+    def get(self, arg1, arg2, arg3, arg4):
+        platform = urllib.unquote(arg1)
+        pslug = urllib.unquote(arg2)
+        rslug = urllib.unquote(arg3)
+        string_key = urllib.unquote(arg4)
+
+        string_id = translation.get_platform_string_id(platform=platform, string_key=string_key)
+        if string_id:
+            d = translation.get_platform_project_source_string_details(platform, pslug, rslug, string_id)
+            if d == None:
+                self.set_status(400)
+                self.finish("<html><body>Failed to obtain translation project source string details. Platform: '{}', Pslug: '{}', Rslug: '{}', StringKey: '{}'.</body></html>".format(platform, pslug, rslug, string_key))
+            else:
+                try:
+                    j = json.dumps(translation.to_dict(d))
+                except ValueError as e:
+                    self.set_status(500)
+                    self.finish("<html><body>Failed to json.load(). Reason: '{}'.</body></html>".format(str(e)))
+                else:
+                    self.finish(j)
+        else:
+            self.set_status(400)
+            self.finish("<html><body>Failed to obtain sting id for source string details. Platform: '{}', Pslug: '{}', Rslug: '{}', StringKey: '{}'.</body></html>".format(platform, pslug, rslug, string_key))
+
 

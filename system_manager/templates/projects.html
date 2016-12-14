@@ -1,6 +1,6 @@
-{# Displays list of projects. #}
-{# Expecting parameters  #}
-{#      project     List of project. #}
+{# Displays list of projects.       #}
+{# Expecting parameters             #}
+{#      data     List of project.   #}
 <!DOCTYPE html>
 {% import urllib %}
 <html>
@@ -15,7 +15,7 @@
             <p>
             <table id="logs">
                 <tr><th>Status</th><th>Id</th><th>Name</th><th>Description</th></tr>
-                    {% for p in projects %}
+                    {% for p in data %}
                         {% set param = urllib.quote(p['id'], safe='') %}
                         <tr><td>{{p['status']}}</td><td><a href="/project/{{param}}/details">{{p['id']}}</a></td><td>{{p['name']}}</td><td>{{p['description']}}</td></tr>
                     {% end %}

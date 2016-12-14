@@ -1,6 +1,6 @@
-{# Displays Project Details page.   #}
-{# Expecting parameters                                                     #}
-{#      project #} 
+{# Displays Project Details page.           #}
+{# Expecting parameters                     #}
+{#      data        Project details data.   #} 
 <!DOCTYPE html>
 {% import urllib %}
 <html>
@@ -14,17 +14,17 @@
             <h1>Project Details</h1>
             <p>
             <table id="logs">
-                <tr><th>Status</th><td>{{project['status']}}</td></tr>
-                <tr><th>Id</th><td>{{project['id']}}</td></tr>
-                <tr><th>Name</th><td>{{project['name']}}</td></tr>
-                <tr><th>Description</th><td>{{project['description']}}</td></tr>
-                {% set n = len(project['jobs']) %}
+                <tr><th>Status</th><td>{{data['status']}}</td></tr>
+                <tr><th>Id</th><td>{{data['id']}}</td></tr>
+                <tr><th>Name</th><td>{{data['name']}}</td></tr>
+                <tr><th>Description</th><td>{{data['description']}}</td></tr>
+                {% set n = len(data['jobs']) %}
                 {% if n >= 1 %}
-                    {% set param = urllib.quote(project['jobs'][0], safe='') %}
-                    <tr><th rowspan="{{n}}">Jobs</th><td><a href="/job/{{param}}/details">{{project['jobs'][0]}}</a></td></tr>
+                    {% set param = urllib.quote(data['jobs'][0], safe='') %}
+                    <tr><th rowspan="{{n}}">Jobs</th><td><a href="/job/{{param}}/details">{{data['jobs'][0]}}</a></td></tr>
                     {% for i in range(1, n) %}
-                        {% set param = urllib.quote(project['jobs'][i], safe='') %}
-                        <tr><td><a href="/job/{{param}}/details">{{project['jobs'][i]}}</a></td></tr>
+                        {% set param = urllib.quote(data['jobs'][i], safe='') %}
+                        <tr><td><a href="/job/{{param}}/details">{{data['jobs'][i]}}</a></td></tr>
                     {% end %}
                 {% else %} 
                 <tr><th>Jobs</th><td>/td></tr>

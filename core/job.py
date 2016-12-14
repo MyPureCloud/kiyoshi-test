@@ -698,5 +698,5 @@ def get_translation_slugs(translation_platform, translation_project_name):
     """ Return list of {<slug>: <name of the slug>} dictionary by querying
         specified translation project.
     """
-    return translation.get_translation_slugs(translation_platform, translation_project_name)
+    return translation.get_translation_resource_slugs(translation_platform, translation_project_name)
 
