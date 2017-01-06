@@ -8,7 +8,7 @@ from hashlib import md5
 from collections import namedtuple
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('tpa')
 
 import api as transifex
 
@@ -27,7 +27,7 @@ def translation_review_completed(language_stats_response_text):
 
 def get_translation_content(get_translation_response_text):
     try:
-        d = json.loads(get_translation_response_text)
+        j = json.loads(get_translation_response_text)
         r = j['content']
     except ValueError as e:
         logger.error("Failed to parse response text. Reason: '{}'. Context: '{}'".format(str(e), get_translation_response_text))

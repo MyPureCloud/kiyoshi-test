@@ -1,4 +1,3 @@
-import sys
 import os
 import difflib
 import filecmp
@@ -6,6 +5,9 @@ import re
 import datetime
 from shutil import copyfile
 from sh import git, ErrorReturnCode
+
+import logging
+logger = logging.getLogger('tpa')
 
 import settings
 import commands as git
@@ -74,46 +76,42 @@ class GitRepository():
         work_branch = self._repository_branch_name
         ret = git.get_current_branch_name(self._local_repo_dir)
         if (not ret.succeeded) or (not ret.output):
-            sys.stderr.write("Failed to get current branch name.\n")
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
-            sys.stderr.write("Failed to pull: '{}'.\n".format(self._repository_name))
+            logger.error("Failed to get current branch name. Reason: '{}'.".format(ret.message))
+            logger.error("Failed to pull: '{}'.".format(self._repository_name))
             return False
         current_branch = ret.output
 
         if work_branch != current_branch:
-            sys.stdout.write("Local repo branch: Exprected: '{}', Current: '{}'.\n".format(work_branch, current_branch))
+            logger.info("Local repo branch: Exprected: '{}', Current: '{}'.".format(work_branch, current_branch))
             ret = git.checkout_branch(self._local_repo_dir, work_branch)
             if ret.succeeded:
-                sys.stdout.write("Switched branch: '{}'.\n".format(work_branch))
+                logger.info("Switched branch: '{}'.".format(work_branch))
             else:
-                sys.stderr.write("Failed to switch branch: '{}'.\n".format(work_branch))
-                sys.stderr.write("Reason: '{}'.\n".format(ret.message))
-                sys.stderr.write("Failed to pull: '{}'.\n".format(self._repository_name))
+                logger.error("Failed to switch branch: '{}'. Reason: '{}'.".format(work_branch, ret.message))
+                logger.error("Failed to pull: '{}'.".format(self._repository_name))
                 return False
 
-        sys.stdout.write("Start pulling...\n")
+        logger.info("Start pulling...")
         ret =  git.pull(self._local_repo_dir)
         if ret.succeeded:
-            sys.stdout.write("Pulled: '{}' ('{}').\n".format(self._repository_name, work_branch))
+            logger.info("Pulled: '{}' ('{}').".format(self._repository_name, work_branch))
             return True
         else:
-            sys.stderr.write("Failed to pull: '{}' ('{}').\n".format(self._repository_name, work_branch))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to pull: '{}' ('{}'). Reason: '{}'.".format(self._repository_name, work_branch, ret.message))
             return False
 
     def _clone(self, repository_url_with_creds_embedded):
-        sys.stdout.write("Start cloning...\n")
+        logger.info("Start cloning...")
         if repository_url_with_creds_embedded:
             url = repository_url_with_creds_embedded
         else:
             url = self._repository_url
         ret = git.clone_branch(url, self._repository_branch_name, self._git_username, self._git_userpasswd, self._local_repo_dir)
         if ret.succeeded:
-            sys.stdout.write("Cloned: '{}' ('{}').\n".format(url, self._repository_branch_name))
+            logger.info("Cloned: '{}' ('{}').".format(url, self._repository_branch_name))
             return True
         else:
-            sys.stderr.write("Failed to clone: '{}' ('{}').\n".format(url, self._repository_branch_name))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to clone: '{}' ('{}'). Reason: '{}'.".format(url, self._repository_branch_name, ret.message))
             return False
 
     def isfile(self, file_path):
@@ -126,7 +124,7 @@ class GitRepository():
         """ Clone if local repository exists. Pull, otherwise.
         """
         if os.path.isdir(self._local_repo_dir):
-            sys.stdout.write("Local repository exists: {}\n".format(self._local_repo_dir))
+            logger.info("Local repository exists: {}.".format(self._local_repo_dir))
             return  self._pull()
         else:
             return self._clone(repository_url_with_creds_embedded)
@@ -134,21 +132,21 @@ class GitRepository():
     def _update_translation(self, translation_import):
         orig_path = os.path.join(self._local_repo_dir, translation_import['translation_path'])
         if not os.path.isfile(orig_path):
-            sys.stderr.write("Expected translation file does not exist in local repository: '{}'.\n".format(orig_path))
+            logger.error("Expected translation file does not exist in local repository: '{}'.".format(orig_path))
             return False
 
         new_path = translation_import['local_path']
         if not os.path.isfile(new_path):
-            sys.stderr.write("Updated traslation NOT found: '{}'.\n".format(new_path))
+            logger.error("Updated traslation NOT found: '{}'.".format(new_path))
             return False
 
         if filecmp.cmp(orig_path, new_path):
-            sys.stdout.write("Translation file does not contain any changes.\n")
+            logger.info("Translation file does not contain any changes.")
             return False
 
         self._display_diff(orig_path, new_path)
         copyfile(new_path, orig_path)
-        sys.stdout.write("Updated translation in local repository.\n")
+        logger.info("Updated translation in local repository.")
         return True
 
     def update_files_in_new_branch(self, list_translation_import):
@@ -163,9 +161,9 @@ class GitRepository():
 
         # try staging translation as much as possible b/c good ones can be PRed.
         for t in list_translation_import:
-            sys.stdout.write("Importing '{}'...\n".format(t['local_path']))
+            logger.info("Importing '{}'...".format(t['local_path']))
             if not self._is_file_clean(t):
-                sys.stderr.write("Skipped staging file. The file is dirty: '{}'.\n".format(t['translation_path'])) 
+                logger.error("Skipped staging file. The file is dirty: '{}'.".format(t['translation_path'])) 
                 continue
             if not self._update_translation(t):
                 continue
@@ -194,8 +192,7 @@ class GitRepository():
         if ret.succeeded:
             return True
         else:
-            sys.stderr.write("Failed to checkout branch: '{}'.\n".format(self._repository_branch_name))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to checkout branch: '{}'. Reason: '{}'.".format(self._repository_branch_name, ret.message))
             return False
 
     def _checkout_feature_branch(self):
@@ -204,8 +201,7 @@ class GitRepository():
         if ret.succeeded:
             return new_branch_name
         else:
-            sys.stderr.write("Failed to checkout feature branch: '{}'.\n".format(new_branch_name))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to checkout feature branch: '{}'. Reason: '{}'.".format(new_branch_name, ret.message))
             return None
 
     def _delete_local_branch(self, branch_name):
@@ -213,58 +209,51 @@ class GitRepository():
         if ret.succeeded:
             return True
         else:
-            sys.stderr.write("Failed to delete local branch: '{}'.\n".format(branch_name))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to delete local branch: '{}'. Reason: '{}'.".format(branch_name, ret.message))
             return False
 
     def _commit(self):
         if not (self._git_username and self._git_userpasswd):
-            sys.stderr.write("BUG: git username and userpasswd need to be set before calling GitRepository._commit().\n")
+            logger.error("BUG: git username and userpasswd need to be set before calling GitRepository._commit().")
             return False
  
         ret = git.set_config_username(self._local_repo_dir, self._git_userfullname)
         if not ret.succeeded:
-            sys.stderr.write("Failed to set git config username: '{}'.\n".format(self._git_userfullname))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to set git config username: '{}'. Reason: '{}'".format(self._git_userfullname, ret.message))
             return False
 
         ret = git.set_config_useremail(self._local_repo_dir, self._git_useremail)
         if not ret.succeeded:
-            sys.stderr.write("Failed to set git config useremail: '{}'.\n".format(self._git_useremail))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to set git config useremail: '{}'. Reason: '{}'.".format(self._git_useremail, ret.message))
             return False
 
         ret = git.commit(self._local_repo_dir, "Translation updates.")
         if ret.succeeded:
             return True
         else:
-            sys.stderr.write("Failed to commit.\n")
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to commit. Reason: '{}'.".format(ret.message))
             return False
 
     def _add_file(self, translation_path, list_staged_path):
         ret = git.not_staged_for_commit(self._local_repo_dir, translation_path)
         if not ret.succeeded:
-            sys.stderr.write("Failed to check staged or not: {}.\n".format(translation_path))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to check staged or not: {}. Reason: '{}'.".format(translation_path, ret.message))
             return
         if not ret.output:
             # this is a bug since the changes have been ensured before translation file was copied to local repository.
-            sys.stderr.write("Translation file is already staged: '{}'.\n".format(translation_path))
+            logger.error("Translation file is already staged: '{}'.".format(translation_path))
             return
 
         ret = git.add_file(self._local_repo_dir, translation_path)
         if ret.succeeded:
             list_staged_path.append(translation_path)
         else:
-            sys.stderr.write("Failed to add file: '{}'.\n".format(translation_path))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to add file: '{}'. Reason: '{}'.".format(translation_path, ret.message))
 
     def _is_file_clean(self, translation_import):
         ret = git.get_status_porcelain(self._local_repo_dir)
         if not ret.succeeded:
-            sys.stderr.write("Failed to get status: '{}'.\n".format(self._repository_name))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to get status: '{}'. Reason: '{}'.".format(self._repository_name, ret.message))
             return False
 
         for line in ret.output:
@@ -277,37 +266,34 @@ class GitRepository():
         if ret.succeeded:
             return True
         else:
-            sys.stderr.write("Failed to set remote url: '{}'\n".format(url))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to set remote url: '{}'. Reason: '{}'.".format(url, ret.message))
             return False
 
     def push_branch(self, branch_name):
         if not (self._git_username and self._git_userpasswd):
-            sys.stderr.write("BUG: git username and userpasswd need to be set before calling GitRepository.push_branch().\n")
+            logger.error("BUG: git username and userpasswd need to be set before calling GitRepository.push_branch().")
             return False
 
         ret = git.push_branch_set_upstream(self._local_repo_dir, branch_name)
         if ret.succeeded:
             return True
         else:
-            sys.stderr.write("Failed to push branch: '{}'\n".format(branch_name))
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to push branch: '{}'. Reason: '{}'.".format(branch_name, ret.message))
             return False
         
     def _display_diff(self, file1, file2):
         with open(file1, 'r') as fi1, open(file2, 'r') as fi2:
             diff = difflib.unified_diff(fi1.readlines(), fi2.readlines())
-            sys.stdout.write("-------- starting diff --------\n")
+            logger.info("-------- starting diff --------")
             for line in diff:
-                sys.stdout.write(line)
-            sys.stdout.write("-------- ending diff --------\n")
+                logger.info(line.rstrip('\n'))
+            logger.info("-------- ending diff --------")
 
     def _revert_file_in_commit(self, branch_name, commit, file_path):
         revert_commit_message = "Reverted."
         ret = git.revert_commit(self._local_repo_dir, commit, file_path, revert_commit_message)
         if not ret.succeeded:
-            sys.stderr.write("Failed to revert commit '{}' for '{}'\n".format(commit, file_path))
-            sys.stderr.write("Reason: '{}'\n".format(ret.message))
+            logger.error("Failed to revert commit '{}' for '{}'. Reason: '{}'.".format(commit, file_path, ret.message))
             return False
 
         # anything to commit ?
@@ -315,14 +301,13 @@ class GitRepository():
         #if len(remaining_staged_files) < 1:
         #    return True
 
-        sys.stderr.write("@@@ Reverted commit: '{}'\n".format(commit))
+        logger.error("@@@ Reverted commit: '{}'.".format(commit))
 
         ret = git.reset_soft(self._local_repo_dir, 'HEAD~1')
         if ret.succeeded:
             return True
         else:
-            sys.stderr.write("Failed to reset to '{}'\n".format(file_path))
-            sys.stderr.write("Reason: '{}'\n".format(ret.message))
+            logger.error("Failed to reset to '{}'. Reason: '{}'.".format(file_path, ret.message))
             return False
 
     def _revert_files(self, branch_name, paths):
@@ -331,7 +316,7 @@ class GitRepository():
             ret = git.get_commit(self._local_repo_dir, path)
             if not ret.succeeded:
                 errors += 1
-                sys.stdout.write("Faild to get a commit for file: '{}'.\n".format(path))
+                logger.info("Faild to get a commit for file: '{}'.".format(path))
                 continue
 
             commits = ret.output
@@ -339,21 +324,19 @@ class GitRepository():
                 if not self._revert_file_in_commit(branch_name, commits[0], path):
                     errors += 1
                 else:
-                    sys.stdout.write("Reverted: '{}'.\n".format(path))
+                    logger.info("Reverted: '{}'.".format(path))
             elif len(commits) == 0:
                 errors += 1
-                sys.stderr.write("Cannot find commit for: '{}'.\n".format(path))
+                logger.error("Cannot find commit for: '{}'.".format(path))
             else:
                 errors += 1
-                sys.stderr.write("Too many commits for: '{}'.\n".format(path))
-                sys.stderr.write("'{}'\n".format(commits))
+                logger.error("Too many commits for: '{}'. Commits: '{}'.".format(path, commits))
         return errors
 
     def revert_files_in_branch(self, branch_name, list_of_file_to_revert):
         ret = git.get_current_branch_name(self._local_repo_dir)
         if (not ret.succeeded) or (not ret.output):
-            sys.stderr.write("Failed to get current branch name.\n")
-            sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+            logger.error("Failed to get current branch name. Reason: '{}'.".format(ret.message))
             return False
 
         current_branch = ret.output
@@ -362,10 +345,9 @@ class GitRepository():
             ret = git.checkout_branch(self._local_repo_dir, branch_name)
             if ret.succeeded:
                 branch_switched = True
-                sys.stdout.write("Switched branch: from '{}' to '{}'.\n".format(current_branch, branch_name))
+                logger.info("Switched branch: from '{}' to '{}'.".format(current_branch, branch_name))
             else:
-                sys.stderr.write("Failed to switch branch: from '{}' to '{}'.\n".format(current_branch, branch_name))
-                sys.stderr.write("Reason: '{}'.\n".format(ret.message))
+                logger.error("Failed to switch branch: from '{}' to '{}'. Reason: '{}'.".format(current_branch, branch_name, ret.message))
                 return False
 
         errors = self._revert_files(branch_name, list_of_file_to_revert)
@@ -373,7 +355,7 @@ class GitRepository():
         if branch_switched:
             ret = git.checkout_branch(self._local_repo_dir, current_branch)
             if not ret.succeeded:
-                sys.stderr.write("Failed to switch branch: from '{}' to '{}'\n".format(branch_name, current_branch))
+                logger.error("Failed to switch branch: from '{}' to '{}'.".format(branch_name, current_branch))
 
         if errors == 0:
             return True
@@ -389,6 +371,6 @@ class GitRepository():
 
         ret = git.get_staged_file(self._local_repo_dir, branch_name)
         if not ret.succeeded:
-            sys.stderr.write("Failed to get staged file in branch: '{}'\n".format(branch_name))
+            logger.error("Failed to get staged file in branch: '{}'.".format(branch_name))
         return ret.output
 

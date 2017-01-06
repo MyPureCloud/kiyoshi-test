@@ -106,7 +106,11 @@ class LogContextHandler(tornado.web.RequestHandler):
     def get(self, param):
         log_path = urllib.quote(param, safe='')
         url = '{}/{}/context'.format(settings.TPA_API_LOG, log_path)
-        _call_api_and_render(self, url, 'log.html', "Failed to obtain log context.")
+        j = _call_api(url)
+        if j:
+            self.render('log.html', path=param, data=j)
+        else:
+            self.render('fatal_error.html', summary="Failed to obtain log context.", details="")
 
 def _get_resource_slugs(job_id):
     url = '{}/{}/resource/slugs'.format(settings.TPA_API_JOB, job_id)

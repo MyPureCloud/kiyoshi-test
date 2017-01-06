@@ -419,12 +419,14 @@ def get_sync_status(**kwargs):
         sync_date =  _get_latest_resource_sync_date(kwargs['translation_platform'], kwargs['translation_project_name'], kwargs['resource_repository_name'], kwargs['resources'])
         if sync_date:
             return JobSyncStatus(kwargs['job_id'], kwargs['job_class'], sync_date, None, None, None)
+        else:
+            return JobSyncStatus(kwargs['job_id'], kwargs['job_class'], 'N/A', None, None, None)
     elif (kwargs['job_class'] == 'TranslationUploaderJob'):
         pr_summary = resource.query_pullrequest(platform=kwargs['resource_platform'], repository_owner=kwargs['repository_owner'], repository_name=kwargs['repository_name'], limit=1)
         if pr_summary:
             return JobSyncStatus(kwargs['job_id'], kwargs['job_class'], pr_summary[0].date, pr_summary[0].number, pr_summary[0].url, pr_summary[0].state)
         else:
-            return JobSyncStatus(kwargs['job_id'], kwargs['job_class'], sync_date, None, None, None)
+            return JobSyncStatus(kwargs['job_id'], kwargs['job_class'], 'N/A', None, None, None)
     if 'job_id' in kwargs:
         logger.error("get_sync_status(): NIY: 'job_id'.")
         return None 

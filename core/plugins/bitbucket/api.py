@@ -1,58 +1,39 @@
-import sys
-import os
 import requests
 from requests.exceptions import RequestException, HTTPError
-import json
-from collections import OrderedDict
 
 from core.plugins.results import succeeded_rest_api_call_results, failed_rest_api_call_results
 
-def get_pullrequests(repository_owner, repository_name, creds):
-    url = 'https://bitbucket.org/api/2.0/repositories/' + repository_owner + '/' + repository_name + '/pullrequests?state=OPEN+state=MERGED+state=DECLINED'
-    headers = {'Content-Type': 'application/json'}
+def get_pullrequests(creds, **kwargs):
+    """
+    Query pull requests.
+    Specify repository_owner, repository_name and query_string for the very first query.
+    Or, specify pull request URL via use_url to query a specific pull request (e.g. to query 'next' pull request page).
+
+    Mandatory Parameters
+    -------------------------------------------------
+    repository_owner        Owner of the repository
+    repository_name         Name of the repository
+    query_string            Query string (e.g. '&state=OPEN')
+
+        --- or ---
+    use_url                 Request URL
+    """
     try:
+        if 'use_url' in kwargs:
+            url = kwargs['use_url']
+        else:
+            url = 'https://bitbucket.org/api/2.0/repositories/' + kwargs['repository_owner'] + '/' + kwargs['repository_name'] + '/pullrequests' + kwargs['query_string']
+        headers = {'Content-Type': 'application/json'}
         r = requests.get(url, auth=(creds['username'], creds['userpasswd']), headers=headers)
         r.raise_for_status()
+    except KeyError as e:
+        return failed_rest_api_call_results(str(e))
     except (RequestException, HTTPError) as e:
-        return failed_rest_api_call_results(e)
+        return failed_rest_api_call_results(str(e))
     else:
         return succeeded_rest_api_call_results(r) 
 
-def get_open_pullrequests(repository_owner, repository_name, creds):
-    url = 'https://bitbucket.org/api/2.0/repositories/' + repository_owner + '/' + repository_name + '/pullrequests?state=OPEN'
-    headers = {'Content-Type': 'application/json'}
-    try:
-        r = requests.get(url, auth=(creds['username'], creds['userpasswd']), headers=headers)
-        r.raise_for_status()
-    except (RequestException, HTTPError) as e:
-        return failed_rest_api_call_results(e)
-    else:
-        return succeeded_rest_api_call_results(r) 
-
-def submit_pullrequest(repository_owner, repository_name, feature_branch_name, destination_branch_name, pr_title, pr_description, pr_reviewers, creds):
-    reviewers = []
-    for s in pr_reviewers:
-        reviewers.append({'username': s})
-
-    payload = json.dumps({
-        'source': {
-            'branch': {
-                'name': feature_branch_name
-            },
-            'repository': {
-                'full_name': repository_owner + '/' + repository_name
-            }
-        },
-        'destination': {
-            'branch': {
-                'name': destination_branch_name
-            }
-        },
-        'title': pr_title,
-        'description': pr_description,
-        'reviewers': reviewers,
-        'close_source_branch': 'true'}, ensure_ascii=False)
-
+def post_pullrequest(creds, repository_owner, repository_name, payload):
     headers = {'Content-Type': 'application/json'}
     url = 'https://bitbucket.org/api/2.0/repositories/' + repository_owner + '/' + repository_name + '/pullrequests'
     try:

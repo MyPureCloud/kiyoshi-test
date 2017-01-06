@@ -1,8 +1,10 @@
-import sys
 import os
 import abc
 from shutil import copyfile
 import json
+
+import logging
+logger = logging.getLogger('tpa')
 
 from core.resource import ResourceConfiguration
 from core.translation import TranslationConfiguration
@@ -20,7 +22,7 @@ class ResourceValidator:
         if resource_file_type == 'json':
             return self._validate_json(resource_path)
         else:
-            sys.stdout.write("No resource validator for {}.\n".format(resource_file_type))
+            logger.info("No resource validator for {}.".format(resource_file_type))
             return True
 
     def _validate_json(self, resource_path):
@@ -28,7 +30,7 @@ class ResourceValidator:
             try:
                 j = json.load(f)
             except ValueError as e:
-                sys.stderr.write("Failed to validate: {}. Reason: {}\n".format(resource_path, e))
+                logger.error("Failed to validate: {}. Reason: {}.".format(resource_path, e))
                 return False
             else:
                 return True
@@ -88,11 +90,11 @@ class ResourceBundle:
         resource_path = self._resources[resource_index].resource_path
         local_resource_path = self.platform_repo.get_local_resource_path(resource_path)
         if not local_resource_path:
-            sys.stderr.write("BUG: Faild to get local_resoruce_path.\n")
+            logger.error("BUG: Faild to get local_resoruce_path.")
             return None
 
         if not os.path.isfile(local_resource_path):
-            sys.stderr.write("Resource not found in local repo: '{}' ('{}').\n".format(local_resource_path, resource_path))
+            logger.error("Resource not found in local repo: '{}' ('{}').".format(local_resource_path, resource_path))
             return None
 
         v = ResourceValidator()
@@ -118,7 +120,7 @@ class ResourceRepository(object):
     def get_resource_bundle(self):
         """ Return ResourceBundle for this resource repository.
         """
-        sys.stderr.write("BUG: Abstract method ResourceRepository.get_resource_bundle() was called.\n")
+        logger.error("BUG: Abstract method ResourceRepository.get_resource_bundle() was called.")
         return None
     
     @abc.abstractmethod
@@ -127,7 +129,7 @@ class ResourceRepository(object):
             this resource repository by importing translation files in TranslationBundle(s).
             Return None otherwise.
         """
-        sys.stderr.write("BUG: Abstract method ResourceRepository.import_bundles() was called.\n")
+        logger.error("BUG: Abstract method ResourceRepository.import_bundles() was called.")
         return None
 
     @abc.abstractmethod
@@ -136,7 +138,7 @@ class ResourceRepository(object):
             Specify additonal pull request reviewers who are not listed in resource config file.
             Retuns PullRequestResults.
         """
-        sys.stderr.write("BUG: Abstract method ResourceRepository.submit_pullrequest() was called.\n")
+        logger.error("BUG: Abstract method ResourceRepository.submit_pullrequest() was called.")
 
 
 '''
@@ -177,7 +179,7 @@ class TranslationBundle:
             if translation.translation_path:
                 translation.local_paths = self._prepare_local_translations(self._current_index)
             else:
-                #sys.stdout.write("'{}': Not listed in resource config. Skipped.\n".format(translation.language_code))
+                #logger.info("'{}': Not listed in resource config. Skipped.".format(translation.language_code))
                 pass
             self._current_index += 1
             return translation
@@ -195,7 +197,7 @@ class TranslationBundle:
             else:
                 translation.local_path = None
         else:
-            sys.stderr.write("{} Failed to download. Status code: {}\n".format(translation.language_code, download.status))
+            logger.error("{} Failed to download. Status code: {}".format(translation.language_code, download.status))
             translation.local_path = None
 
 class TranslationRepository(object):
@@ -217,16 +219,16 @@ class TranslationRepository(object):
 
     @abc.abstractmethod
     def get_translation_bundle(self, resource):
-        sys.stderr.write("BUG: Abstract method TranslationRepository.get_translation_bundle() was called.\n")
+        logger.error("BUG: Abstract method TranslationRepository.get_translation_bundle() was called.")
         return None
 
     @abc.abstractmethod
     def import_resource(self, resource):
-        sys.stderr.write("BUG: Abstract method TranslationRepository.import_resource() was called.\n")
+        logger.error("BUG: Abstract method TranslationRepository.import_resource() was called.")
         return False
 
     @abc.abstractmethod
     def get_stats_project(self):
-        sys.stderr.write("BUG: Abstract method TranslationRepository.get_stats_project() was called.\n")
+        logger.error("BUG: Abstract method TranslationRepository.get_stats_project() was called.")
         return False
 

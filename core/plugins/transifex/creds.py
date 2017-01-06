@@ -3,7 +3,7 @@ import json
 from collections import namedtuple
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('tpa')
 
 def to_dict(o):
     if type(o) == TransifexCreds:

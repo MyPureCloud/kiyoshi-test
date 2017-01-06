@@ -38,6 +38,7 @@
                             </tr>
                         {# TU #}
                         {% elif sync['job_class_name'] == 'TranslationUploaderJob' %}
+                            {% if sync['sync_url'] and sync['sync_id'] and sync['sync_state'] %}
                         <tr><td>{{data['resources']['resource_repository_name']}} ({{data['resources']['resource_repository_platform']}})</td><td>{{sync['job_status']}}</td><td>{{sync['job_cron_string']}}<td>{{sync['sync_date']}} <a href="{{sync['sync_url']}}">Pull Request #{{sync['sync_id']}} ({{sync['sync_state']}})</a></td>
                             <td>
                             <form id="exec_job" action="/exec/{{data['project_id']}}/{{sync['job_id']}}" method="post">
@@ -46,6 +47,16 @@
                             </form>
                             </td>
                             </tr>
+                           {% else %}
+                        <tr><td>{{data['resources']['resource_repository_name']}} ({{data['resources']['resource_repository_platform']}})</td><td>{{sync['job_status']}}</td><td>{{sync['job_cron_string']}}<td>{{sync['sync_date']}}</td>
+                            <td>
+                            <form id="exec_job" action="/exec/{{data['project_id']}}/{{sync['job_id']}}" method="post">
+                            <input type="hidden" name="job_id" value={{sync['job_id']}}>
+                            <input type="submit" value="Sync Translation Now">
+                            </form>
+                            </td>
+                            </tr>
+                           {% end %}
                          {% else %}
                          <tr><td colspan="5">Unknown job class: {{sync['job_class_name']}}</td></tr> 
                         {% end %}        

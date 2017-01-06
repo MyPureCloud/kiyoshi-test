@@ -8,7 +8,8 @@ import yaml
 import logging
 logger = logging.getLogger(__name__)
 
-import plugins.bitbucket.api as bitbucket_api
+import plugins.bitbucket.utils as bitbucket_utils
+import plugins.github.utils as github_utils
 import plugins.github.api as github_api
 
 import settings
@@ -116,128 +117,69 @@ PullRequestSummary = namedtuple('PullRequestSummary', 'date, number, url, state'
 def _PullRequestSummary_to_dict(o):
     return {'date': o.date, 'number': o.number, 'url': o.url, 'state': o.state}
 
-def _query_bitbucket_pullrequest(**kwargs):
-
-    def _next_page(url, creds):
-        headers = {'Content-Type': 'application/json'}
-        try:
-            r = requests.get(url, auth=(creds['username'], creds['userpasswd']), headers=headers)
-            r.raise_for_status()
-        except (RequestException, HTTPError) as e:
-            logger.error(e)
-            return None
-        else:
-            try:
-                j = json.loads(ret.response.text, object_pairs_hook=OrderedDict)
-            except ValueError as e:
-                logger.error(e)
-                return None
-            else:
-                return j
-
-    c = creds.get('bitbucket')
-    if not c:
-        logger.error("Failed to get creds for bitbucket.")
-        return None
-
-    ret = bitbucket_api.get_pullrequests(kwargs['repository_owner'], kwargs['repository_name'], {'username': c.username, 'userpasswd': c.userpasswd})
-    if not ret.succeeded:
-        return ret
-    
-    try:
-        j = json.loads(ret.response.text, object_pairs_hook=OrderedDict)
-    except ValueError as e:
-        logger.error("Failed to load pullreqeust results a json. Reason: '{}'.".format(e))
-        return None
-
-    if 'author' in kwargs:
-        author = kwargs['author']
-    else:
-        author = c.username
-
-    if 'limit' in kwargs:
-        limit = kwargs['limit']
-    else:
-        # FIXME
-        limit = 100
-
-    results = []
-    count = 0
-    done = False
-    while not done:
-        for v in j['values']:
-            if count < limit:
-                if v['author']['username'] == author:
-                    results.append(PullRequestSummary(v['created_on'], v['id'], v['links']['html']['href'], v['state']))
-                    count += 1
-            else:
-                done = True
-                break
-        else:
-            if 'next' in v:
-                j = _next_page(v['next'], c)
-                if not j:
-                    done = True
-
-    return results
-
-def _query_github_pullrequest(**kwargs):
-    c = creds.get('github')
-    if not c:
-        logger.error("Failed to get creds for github.")
-        return None
-
-    if 'author' in kwargs:
-        author = kwargs['author']
-    else:
-        author = c.username
-
-    # query issues only once (assuming git hub returns enough issues)
-    ret = github_api.search_issues(kwargs['repository_owner'], kwargs['repository_name'], author, {'username': c.username, 'userpasswd': c.userpasswd})
-    if not ret.succeeded:
-        logger.error("Failed to search github issues. Reason: '{}'.".format(ret.message))
-        return None
-    
-    try:
-        j = json.loads(ret.response.text, object_pairs_hook=OrderedDict)
-    except ValueError as e:
-        logger.error("Failed to load github query result as json. Reason: '{}'.".format(e))
-        return None
-
-    results = []
-    items = j['items']
-    if 'limit' in kwargs:
-        count = 0
-        for o in items:
-            if count < kwargs['limit']:
-                results.append(PullRequestSummary(o['created_at'], o['number'], o['html_url'], o['state']))
-                count += 1
-            else:
-                break
-    else:
-        for o in items:
-            results.append(PullRequestSummary(o['created_at'], o['number'], o['html_url'], o['state']))
-    return results
-
-def query_pullrequest(**kwargs):
+def query_pullrequest(platform, repository_owner, repository_name, author=None, limit=1):
     """
     Return list of pull request summary.
-
-    Mandatory
-    ---------
-    platform:               Resource platform name.
-    repository_owner:       Repository owner.
-    repository_name:        Repository name.
 
     OPTION
     ------
     author:                 Username of pull request submitter. Default author is obtained from  username in creds file.
-    limit:                  Max number of pullrequest to query.
+    limit:                  Max number of pullrequest to obtain for the author.
     """
-    if kwargs['platform'] == 'bitbucket':
-        return _query_bitbucket_pullrequest(**kwargs)
-    elif kwargs['platform'] == 'github':
-        return _query_github_pullrequest(**kwargs)
+    
+    # Try query 30 pull requests for ANY author with hoping that pull requests we are looking for are in the first 30. 
+    NUM_TOTAL_QUERY = 30
+
+    if platform == 'bitbucket':
+        c = creds.get('bitbucket')
+        if not c:
+            return None
+        PR_STATE_STRINGS = [] # query all state
+        l = bitbucket_utils.get_pullrequests({'username':c.username, 'userpasswd': c.userpasswd}, repository_owner, repository_name, PR_STATE_STRINGS, NUM_TOTAL_QUERY)
+        if l == None or len(l) == 0:
+            return None
+
+        # Try pcik up pull requests for the specific author.
+        if author:
+            submitter = author
+        else:
+            submitter = c.username
+        r = []
+        n = 0
+        for x in l:
+            if n >= limit:
+                break
+            else:
+                if submitter == x['submitter']:
+                    r.append(PullRequestSummary(x['date'], x['number'], x['pr_url'], x['state']))
+                    n += 1
+                else:
+                    pass
+        return r
+    elif platform== 'github':
+        c = creds.get('github')
+        if not c:
+            return None
+
+        PR_STATE_STRINGS = ['open', 'closed'] # query all state
+        # Try pcik up pull requests for the specific author.
+        if author:
+            submitter = author
+        else:
+            submitter = c.username
+        l = github_utils.get_pullrequests({'username':c.username, 'userpasswd': c.userpasswd}, repository_owner, repository_name, PR_STATE_STRINGS, submitter, NUM_TOTAL_QUERY)
+        if l == None or len(l) == 0:
+            return None
+
+        r = []
+        n = 0
+        for x in l:
+            if n >= limit:
+                break
+            else:
+                r.append(PullRequestSummary(x['date'], x['number'], x['pr_url'], x['state']))
+                n += 1
+        return r
     else:
         logger.error("Unknown resource platform: '{}'.\n".format(resource_platform))
         return None 

@@ -6,6 +6,10 @@ import codecs
 import requests
 from requests.exceptions import ConnectionError
 from hashlib import sha1
+from collections import namedtuple
+
+import logging
+logger = logging.getLogger('tpa')
 
 from core.plugins.repository_base import TranslationRepository, TranslationBundle, Translation
 
@@ -45,13 +49,13 @@ class TransifexRepository(TranslationRepository):
         if not pslug:
             return False
 
-        sys.stdout.write("Destination project: {} ({})\n".format(pslug, self.config.project_name))
+        logger.info("Destination project: {} ({})".format(pslug, self.config.project_name))
 
         rslug = self.generate_resource_slug([resource.repository_name, resource.resource_path])
         if not rslug:
             return False
 
-        sys.stdout.write("Destination Resource: {}\n".format(rslug))
+        logger.info("Destination Resource: {}".format(rslug))
 
         ret = transifex.put_resource(pslug, rslug, resource.local_path, resource.repository_name, resource.resource_path, self._api_creds)
         if not ret.succeeded:
@@ -83,18 +87,18 @@ class TransifexRepository(TranslationRepository):
         num_del = 'n/a'
         result = 'FAILURE'
         if status_code == 200 or status_code == 201:
-            sys.stdout.write(response_text + "\n")
+            logger.info(response_text)
             try:
                 j = json.loads(response_text)
             except ValueError as e:
-                sys.stderr.write("Failed read response result as json. Reason: '{}'.\n".format(e))
+                logger.error("Failed read response result as json. Reason: '{}'.".format(e))
             else:
                 num_new = j['strings_added']
                 num_mod = j['strings_updated']
                 num_del = j['strings_delete']
                 result = 'SUCCESS'
         else:
-            sys.stderr.write(response_text + "\n")
+            logger.error(response_text)
         
         d = {
             "operation": "ResourceUpload",
@@ -107,7 +111,7 @@ class TransifexRepository(TranslationRepository):
             "mod_strings": num_mod,
             "del_strings": num_del
             }
-        sys.stdout.write("ExecStats='{}'\n".format(json.dumps(d)))
+        logger.info("ExecStats='{}'".format(json.dumps(d)))
 
     def _write_failure_language_stats(self, repository_name, resource_path, language_code, message):
         d = {}
@@ -115,14 +119,14 @@ class TransifexRepository(TranslationRepository):
         d['reosurce_path'] = resource_path
         d['language_code'] = language_code
         d['message'] = message
-        sys.stdout.write('LanguageStats=' + json.dumps(d) + '\n')
+        logger.info('LanguageStats=' + json.dumps(d))
 
     # TODO --- handing response_text part can move to util
     def _write_language_stats(self, repository_name, resource_path, language_code, pslug, rslug, response_text):
         try:
             d = json.loads(response_text)
         except ValueError as e:
-            self._write_failure_language_stats(repository_name, resource_path, language_code, "Failed to read language status as json. Reason: '{}'.\n".format(e))
+            self._write_failure_language_stats(repository_name, resource_path, language_code, "Failed to read language status as json. Reason: '{}'.".format(e))
             return
 
         d['repository_name'] = repository_name
@@ -131,7 +135,7 @@ class TransifexRepository(TranslationRepository):
         d['project_slug'] = pslug
         d['resource_slug'] = rslug
         d['operation'] = 'GetLanguageStats'
-        sys.stdout.write('LanguageStats=' + json.dumps(d) + '\n')
+        logger.info('LanguageStats=' + json.dumps(d))
 
     def download_translation(self, repository_name, resource_path, language_code):
         download = TransifexTranslationDownload()        

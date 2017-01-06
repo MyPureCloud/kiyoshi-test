@@ -20,7 +20,7 @@ def failed_rest_api_call_results(exception):
 
 
 # UtilCallResults
-# This is returned by utility functions which process data by calling REST APIs.
+#   UtilCallResults are currently only used in git/commands.py.
 #
 #   .succeeded: True on success, otherwise False.
 #   .output: 
@@ -54,44 +54,4 @@ def succeeded_pullrequest_results(error, message=None, status_code=None, number=
 
 def failed_pullrequest_results(errors, message, status_code=None, number=None, url=None, diff_url=None):
     return PullRequestResults(errors, False, message, status_code, number, url, diff_url)
-
-# ResourceUploadResults
-# This is used for ExecStats to represents results of uploading a resource to translation repository.
-#
-#   .operation: Name of operation 'ResourceUpload'.
-#   .results: 'SUCCESS' or 'FAIURE'
-#   .message: Additional message or error message when error occurs.
-#   .status_code: REST API status code. e.g. '200'
-#   .resource_path: resource path in repository. e.g. 'src/strings/en-US.json'
-#   .project_slug: Slug of destination project in translation repository.
-#   .resource_slug: Slug of destination resource in translation repository.
-#   .new_strings: Number of new strings in the resource.
-#   .mod_strings: Number of modified strings in the resource.
-#   .del_strings: Number of deleted strings in the resource.
-#ResourceUploadResults = namedtuple('ResourceUploadResults', 'operation, results, message, status_code, resource_path, project_slug, resource_slug, new_strings, mod_stings, del_strings')
-
-# TranslationUploadResults
-# This is used for ExecStats to represents results of uploading translation(s) to resource repository.
-#
-#   .operation: Name of operation 'TranslationUpload'.
-#   .results: 'SUCCESS' or 'FAILURE'.
-#   .message: Additional message.
-#   .status_code: REST API status code.
-#   .pullrequest_url: URL to issued pull request.
-#TranslationUploadResults = namedtuple('TranslationUploadResults', 'operation, results, message, status_code, pulllrequest_url')
-
-# LanguageStatus
-# This is used for LanguageStats to represents translation status for a particular language in translation repository.
-#
-#   .operation: Name of operation 'GetLanguageStats'
-#   .results: 'SUCCESS' or 'FAILURE'.
-#   .message: Additional message.
-#   .status_code: REST API status code.
-#   .project_slug: Slug of project in translation repository.
-#   .resoruce_slug: Slug o resource in the translation repository.
-#   .language_code: Language code. e.g. 'es-MX'
-#   .repository_name: Name of resource repository.
-#   .resource_path: Resource path in the resource repository.
-#LanguageStatus = namedtuple('GetLanguageStats', 'operation, results, message, status_code, project_slug, resource_slug, langauge_code, repository_name, resource_path')
-
 
