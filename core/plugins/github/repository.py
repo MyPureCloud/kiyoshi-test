@@ -78,6 +78,7 @@ class GithubRepository(ResourceRepository):
     def _create_resource(self, repository_name, resource_index):
         r = Resource(
                 repository_name,
+                self.config.repository_branch,
                 self.config.resources[resource_index].path,
                 self.config.resources[resource_index].filetype,
                 self.config.resources[resource_index].language_code,

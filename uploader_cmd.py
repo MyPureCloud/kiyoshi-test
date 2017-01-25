@@ -39,7 +39,7 @@ def upload_translation(resource_repository, resource_bundle, translation_reposit
             logger.info("No resource available in local: '{}'".format(resource.resource_path))
             continue
 
-        trans_bundle = translation_repository.get_translation_bundle(resource.repository_name, resource.resource_path, resource.resource_translations)
+        trans_bundle = translation_repository.get_translation_bundle(resource.repository_name, resource.repository_branch, resource.resource_path, resource.resource_translations)
         if trans_bundle:
             trans_bundles.append(trans_bundle)
         else:

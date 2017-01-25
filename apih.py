@@ -14,6 +14,7 @@ import core.project as project
 import core.job as job
 import core.resource as resource
 import core.translation as translation
+import core.repository as repository
 
 class JobExecutionHandler(tornado.web.RequestHandler):
     def post(self, param):
@@ -400,6 +401,27 @@ class ResourceConfigurationHandler(tornado.web.RequestHandler):
             self.set_status(500)
             self.finish("<html><body>Failed to get resource configuration file context. filename '{}'.</body></html>".format(filename))
 
+    def post(self, resource_configuration_filename):
+        config = urllib.unquote(resource_configuration_filename)
+        try:
+            j = json.loads(self.request.body)
+        except ValueError as e:
+            self.set_status(500)
+            self.finish("<html><body>Failed to json.load(). Reason: '{}'.</body></html>".format(e))
+        else: 
+            r = resource.update_configuration(config, j)
+            if r:
+                try:
+                    s = json.dumps(resource.to_dict(r))
+                except ValueError as e:
+                    self.set_status(500)
+                    self.finish("<html><body>Failed to json.dumps(). Reason: '{}'.</body></html>".format(e))
+                else:
+                    self.finish(s)
+            else:
+                self.set_status(500)
+                self.finish("<html><body>Failed to update resource configuration data.</body></html>")
+
 class TranslationConfigurationHandler(tornado.web.RequestHandler):
     """ Raw context of a translation configuration file. """
     def get(self, param): # translation config filename
@@ -523,4 +545,71 @@ class TranslationSourceStringDetailsHandler(tornado.web.RequestHandler):
             self.set_status(400)
             self.finish("<html><body>Failed to obtain sting id for source string details. Platform: '{}', Pslug: '{}', Rslug: '{}', StringKey: '{}'.</body></html>".format(platform, pslug, rslug, string_key))
 
+class ListLocalRepositoriesHandler(tornado.web.RequestHandler):
+    """ Return list of git directories under local repo directory. """
+    def get(self):
+        rootdir = repository.get_local_repository_directory()
+        if rootdir == None:
+            self.set_status(500)
+            self.finish("<html><body>Local repository directory not found.</body></html>")
+        else:
+            l = [f for f in os.listdir(rootdir) if os.path.isdir(os.path.join(rootdir, f, '.git'))]
+            try:
+                j  = json.dumps(l)
+            except ValueError as e:
+                self.set_status(500)
+                self.finish("<html><body>Failed to json.dumps(). Reason: '{}'.</body></html>".format(e))
+            else:
+                self.finish(j)
+
+class ListLocalRepositoryFilesHandler(tornado.web.RequestHandler):
+    """ Return list of specified directory in local repo directory. """
+    def get(self, arg1, arg2): # arg1: repository name, arg2: relative path in the repository
+        rootdir = repository.get_local_repository_directory()
+        if rootdir == None:
+            self.set_status(500)
+            self.finish("<html><body>Local repository directory not found.</body></html>")
+        else:
+            fullpath = os.path.join(rootdir, urllib.unquote(arg1), urllib.unquote(arg2))   
+            if os.path.isdir(fullpath):
+                r = []
+                for x in os.listdir(fullpath):
+                    if os.path.isfile(os.path.join(fullpath, x)):
+                        r.append({'type': 'file', 'name': x})
+                    elif os.path.isdir(os.path.join(fullpath, x)):
+                        r.append({'type': 'dir', 'name': x})
+                    else:
+                        logger.error("Skipped listing unknwon file type. Path: '{}'.".format(os.path.join(fullpath, x)))
+                try:
+                    j = json.dumps(r)
+                except ValueError as e:
+                    self.set_status(500)
+                    self.finish("<html><body>Failed to json.dumps(). Reason: '{}'.</body></html>".format(e))
+                else:
+                    self.finish(j)
+            else:
+                self.set_status(500)
+                self.finish("<html><body>Local directory not found. Path: '{}'.</body></html>".format(os.path.join(urllib.unquote(arg1), urllib.unquote(arg2))))
+
+class ListLocalRepositoryBranchesHandler(tornado.web.RequestHandler):
+    """ Return list of branch names for specified local repository. """
+    def get(self, arg):
+        rootdir = repository.get_local_repository_directory()
+        if rootdir == None:
+            self.set_status(500)
+            self.finish("<html><body>Local repository directory not found.</body></html>")
+        else:
+            repo = os.path.join(rootdir, urllib.unquote(arg))   
+            l = repository.get_local_repository_branches(repo)
+            if l != None:
+                try:
+                    j = json.dumps(l)
+                except ValueError as e:
+                    self.set_status(500)
+                    self.finish("<html><body>Failed to json.dumps(). Reason: '{}'.</body></html>".format(e))
+                else:
+                    self.finish(j)
+            else:
+                self.set_status(500)
+                self.finish("<html><body>Failed to obtain local repository branches. Repository: '{}'.</body></html>".format(urllib.unquote(arg2)))
 

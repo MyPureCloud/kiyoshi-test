@@ -10,6 +10,7 @@ TPA_API_JOBS = urlparse.urljoin(TPA_SERVER, 'api/v0/jobs')
 TPA_API_LOG = urlparse.urljoin(TPA_SERVER, 'api/v0/log')
 TPA_API_PROJECT = urlparse.urljoin(TPA_SERVER, 'api/v0/project')
 TPA_API_PROJECTS = urlparse.urljoin(TPA_SERVER, 'api/v0/projects')
+TPA_API_TRANSLATION= urlparse.urljoin(TPA_SERVER, 'api/v0/translation')
 
 # Port for this server.
 HTTP_PORT='8081'

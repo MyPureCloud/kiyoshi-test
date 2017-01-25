@@ -44,8 +44,9 @@ class ResourceValidator:
 
 '''
 class Resource:
-    def __init__(self, repository_name, resource_path, resource_filetype, resource_language_code, resource_translations):
+    def __init__(self, repository_name, branch_name, resource_path, resource_filetype, resource_language_code, resource_translations):
         self.repository_name = repository_name
+        self.repository_branch = branch_name
         self.resource_path = resource_path
         self.resource_filetype = resource_filetype
         self.resource_language_code = resource_language_code
@@ -54,7 +55,7 @@ class Resource:
         self.local_path = str()
 
     def __str__(self):
-        return ("Resource('repository_name': '{}', 'resource_path': '{}', 'resource_filetype': '{}', 'resource_language_code': '{}', 'resource_translation': '{}')".format(self.repository_name, self.resource_path, self.resource_filetype, self.resource_language_code, self.resource_translations))
+        return ("Resource('repository_name': '{}', 'repository_branch': '{}', 'resource_path': '{}', 'resource_filetype': '{}', 'resource_language_code': '{}', 'resource_translation': '{}')".format(self.repository_name, self.repository_branch, self.resource_path, self.resource_filetype, self.resource_language_code, self.resource_translations))
 
     def available(self):
         return self.local_path
@@ -147,15 +148,16 @@ class ResourceRepository(object):
 
 '''
 class Translation:
-    def __init__(self, repository_name, resource_path, translation_path, language_code):
+    def __init__(self, repository_name, repository_branch, resource_path, translation_path, language_code):
         self.repository_name = repository_name
+        self.repository_branch = repository_branch
         self.resource_path = resource_path
         self.translation_path = translation_path
         self.language_code = language_code
         self.local_path = str()
 
     def __str__(self):
-        return ("Translation('repository_name': '{}', 'resource_path': '{}', 'translation_path': '{}', 'language_code': '{}', 'local_path': '{}')".format(self.repository_name, self.resource_path, self.translation_path, self.language_code, self.local_path))
+        return ("Translation('repository_name': '{}', 'repository_branch: '{}', 'resource_path': '{}', 'translation_path': '{}', 'language_code': '{}', 'local_path': '{}')".format(self.repository_name, self.repository_branch, self.resource_path, self.translation_path, self.language_code, self.local_path))
 
 
     # TODO --- add download status (can be used to display Translation in TranslationBundle)
@@ -177,7 +179,7 @@ class TranslationBundle:
         else:
             translation = self._translations[self._current_index]
             if translation.translation_path:
-                translation.local_paths = self._prepare_local_translations(self._current_index)
+                translation.local_path = self.platform_repo.download_translation(translation.repository_name, translation.repository_branch, translation.resource_path, translation.language_code)
             else:
                 #logger.info("'{}': Not listed in resource config. Skipped.".format(translation.language_code))
                 pass
@@ -186,19 +188,6 @@ class TranslationBundle:
 
     def __len__(self):
         return len(self._translations)
-
-    def _prepare_local_translations(self, translation_index):
-        translation = self._translations[translation_index]
-        download = self.platform_repo.download_translation(translation.repository_name, translation.resource_path, translation.language_code)
-        if download.errors == 0:
-            if download.path:
-                translation.local_path = download.path
-                return 
-            else:
-                translation.local_path = None
-        else:
-            logger.error("{} Failed to download. Status code: {}".format(translation.language_code, download.status))
-            translation.local_path = None
 
 class TranslationRepository(object):
     __metaclass__ = abc.ABCMeta

@@ -24,12 +24,6 @@ from . import utils as utils
 # userpasswd            user password
 TransifexApiCreds = namedtuple('TransifexApiCreds', 'username, userpasswd')
 
-class TransifexTranslationDownload:
-    def __init__(self):
-        self.path = str()
-        self.status = str()
-        self.errors = 0
-
 class TransifexRepository(TranslationRepository):
     def __init__(self, config, creds, log_dir):
         super(TransifexRepository, self).__init__(config, log_dir)
@@ -138,32 +132,27 @@ class TransifexRepository(TranslationRepository):
         logger.info('LanguageStats=' + json.dumps(d))
 
     def download_translation(self, repository_name, resource_path, language_code):
-        download = TransifexTranslationDownload()        
         pslug = self.generate_project_slug(self.config.project_name)
         if not pslug:
-            download.errors += 1
             self._write_failure_language_stats(repository_name, resource_path, language_code, "Failed to generate project slug.")
-            return download
+            return None
 
         rslug = self.generate_resource_slug([repository_name, resource_path])
         if not rslug:
-            download.errors += 1
             self._write_failure_language_stats(repository_name, resource_path, language_code, "Failed to generate resource slug.")
-            return download
+            return None
 
         ret = transifex.get_language_stats(pslug, rslug, language_code, self._api_creds)
         if not ret.succeeded:
-            download.errors += 1
             self._write_failure_language_stats(repository_name, resource_path, language_code, "Failed to obtain language stats.")
-            return download
+            return None
 
         self._write_language_stats(repository_name, resource_path, language_code, pslug, rslug, ret.response.text)
         if not utils.translation_review_completed(ret.response.text):
-            download.status = "Review not completed: {}, pslug: '{}', rslug: '{}'".format(language_code, pslug, rslug)   
-            return download
+            logger.info("Review not completed: {}, pslug: '{}', rslug: '{}'".format(language_code, pslug, rslug))  
+            return None
 
-        self._download_translation(download, pslug, rslug, language_code)
-        return download
+        return self._download_translation(pslug, rslug, language_code)
 
     def _store_raw_download_file(self, raw_download_path, get_translation_response_text):
         if os.path.isfile(raw_download_path):
@@ -187,26 +176,24 @@ class TransifexRepository(TranslationRepository):
             with open(download_path, 'w') as fo:
                 fo.write(translation_content)
 
-    def _download_translation(self, transifex_download_obj, project_slug, resource_slug, language_code):
+    def _download_translation(self, project_slug, resource_slug, language_code):
         ret = transifex.get_translation_reviewed(project_slug, resource_slug, language_code, self._api_creds)
         if not ret.succeeded:
-            transifex_download_obj.errors += 1
-            transifex_download_obj.status = "Failed to download translation."
-            return
+            logger.error("Failed to download translation.")
+            return None
 
         raw_download_path = os.path.join(self._log_dir, resource_slug + '_' + language_code + '_raw')
         self._store_raw_download_file(raw_download_path, ret.response.text)
 
         c = utils.get_translation_content(ret.response.text)
         if not c:
-            transifex_download_obj.errors += 1
-            transifex_download_obj.status = "Failed read raw download."
-            return
+            logger.error("Failed read raw download.")
+            return None
 
         download_path = os.path.join(self._log_dir, resource_slug + '_' + language_code)
         self._store_translation(download_path, c)
-        transifex_download_obj.path = os.path.abspath(download_path)
-        transifex_download_obj.status = "Donloaded: {}".format(download_path)
+        logger.info("Donloaded: {}".format(download_path))
+        return os.path.abspath(download_path)
 
     # TODO --- util/tpa_utils.py uses this to extract project/resource names and slugs
     #          from response text.

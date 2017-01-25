@@ -1,21 +1,19 @@
-import os
-import sys
-import json
-import copy
-from collections import namedtuple
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('tpa')
 
 import settings
 import core.plugins.git.creds as git
 import core.plugins.bitbucket.creds as bitbucket
 import core.plugins.github.creds as github
 import core.plugins.transifex.creds as transifex
+import core.plugins.crowdin.creds as crowdin
 
 def to_dict(o):
     if type(o) == transifex.TransifexCreds:
         return transifex.to_dict(o)
+    elif type(o) == crowdin.CrowdinCreds:
+        return crowdin.to_dict(o)
     elif type(o) == git.GitCreds:
         return git.to_dict(o)
     else:
@@ -28,6 +26,8 @@ def get(platform_name):
     """
     if platform_name == 'transifex':
         return transifex.get(settings.TRANSIFEX_CREDS_FILE)
+    elif platform_name == 'crowdin':
+        return crowdin.get(settings.CROWDIN_CREDS_FILE)
     elif platform_name == 'bitbucket':
         return bitbucket.get(settings.BITBUCKET_CREDS_FILE)
     elif platform_name == 'github':

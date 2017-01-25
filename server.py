@@ -86,11 +86,19 @@ class ScheduleServer():
                     # Contents of translation configuration file. Args: translation configuration file name
                     (r'/api/v0/config/translation/([^/]+)', apih.TranslationConfigurationHandler),
 
-                    #--- LOG --- #
+                    #--- LOG (JOB EXECUTION LOG) --- #
                     # Log context. Args: log path
                     (r'/api/v0/log/([^/]+)/context', apih.LogContextHandler),
 
-                    # --- RESOURCE REPOSITORY ---#
+                    # --- LOCAL FILES --- #
+                    # List local repositories (git repository).
+                    (r'/api/v0/local/repositories', apih.ListLocalRepositoriesHandler),
+                    # List branches of specified local git repository. Args: repository name
+                    (r'/api/v0/local/repository/([^/]+)/branches', apih.ListLocalRepositoryBranchesHandler),
+                    # List local files under specified directory. Args: repository name, relative path in the repository
+                    (r'/api/v0/local/repository/([^/]+)/files/([^/]+)', apih.ListLocalRepositoryFilesHandler),
+
+                    # --- RESOURCE REPOSITORY --- #
                     # List of repositories. Args: platform name
                     #(r'/api/v0/resource/([^/]+)/repositories', apih.ListResourceRepositoriessHandler),
 

@@ -24,7 +24,7 @@
             <h2>Sync Status</h2>
                 <p>
                 <table id="logs">
-                    <tr><th>Sync Destination</th><th>Status</th><th>Schedule</th><th colspan="2">Last Occurrence</th></tr>
+                    <tr><th>Sync Destination</th><th>Status</th><th>Schedule</th><th colspan="3">Last Occurrence</th></tr>
                     {% for sync in data['job_syncs'] %}
                         {# RU #}
                         {% if sync['job_class_name'] == 'ResourceUploaderJob' %}
@@ -35,6 +35,7 @@
                             <input type="submit" value="Sync Resource Now">
                             </form>
                             </td>
+                            <td><a href="/job/{{sync['job_id']}}/configuration">Configure</a></td>
                             </tr>
                         {# TU #}
                         {% elif sync['job_class_name'] == 'TranslationUploaderJob' %}
@@ -46,6 +47,7 @@
                             <input type="submit" value="Sync Translation Now">
                             </form>
                             </td>
+                            <td><a href="/job/{{sync['job_id']}}/configuration">Configure</a></td>
                             </tr>
                            {% else %}
                         <tr><td>{{data['resources']['resource_repository_name']}} ({{data['resources']['resource_repository_platform']}})</td><td>{{sync['job_status']}}</td><td>{{sync['job_cron_string']}}<td>{{sync['sync_date']}}</td>
@@ -55,6 +57,7 @@
                             <input type="submit" value="Sync Translation Now">
                             </form>
                             </td>
+                            <td><a href="/job/{{sync['job_id']}}/configuration">Configure</a></td>
                             </tr>
                            {% end %}
                          {% else %}
@@ -62,6 +65,7 @@
                         {% end %}        
                     {% end %}        
                 </table>
+                
             <h2>Translation Status</h2>
                 <p>
                 <table id="logs">

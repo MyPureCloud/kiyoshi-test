@@ -1,12 +1,10 @@
 import os
 from collections import namedtuple
-from collections import OrderedDict
 import json
-import copy
-import yaml
+from datetime import datetime
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('tpa')
 
 import plugins.bitbucket.utils as bitbucket_utils
 import plugins.github.utils as github_utils
@@ -317,13 +315,78 @@ def _ResourceConfiguration_to_dict(o):
             'options': _options_to_dict(o.options)
             }
 
+def _revert_ResourceConfigurationResources_to_dict(o):
+    l = []
+    for x in o:
+        l.append({"resource": x})
+    return l
+
+def _revert_ResourceConfiguration_to_dict(o):
+    """
+    This performs vice versa operation of _ResoruceConfiguration_to_dict().
+    'filename' and 'path' will be discarded as a result of this operation.
+
+    Return dictonary in original configuration file format.
+    Return None on any errors.
+    """
+    try:
+        d = { "repository": {
+                "platform": o['repository_platform'],
+                "url": o['repository_url'],
+                "owner": o['repository_owner'],
+                "name": o['repository_name'],
+                "branch": o['repository_branch'],
+                "resources": _revert_ResourceConfigurationResources_to_dict(o['resources']),
+                "pullrequest": o['pullrequest'],
+                "options": o['options']
+                }}
+    except KeyError as e:
+        logger.error("Unknown dict format. Reason: '{}'.".format(str(e)))
+        return None
+    else:
+        return d
+
+def to_resource_configuration_file_format(o):
+    """
+    Return dict of resource configuration out of given str or dict object.
+    Return None on any errors.
+    """
+    if type(o) == str:
+        try:
+            d = json.loads(o)
+        except ValueError as e:
+            logger.error("Failed to load as json. Reason: '{}', Text: '{}'".format(str(e), o))
+            return None
+        else:
+            return _revert_ResourceConfiguration_to_dict(d)
+    elif type(o) == dict:
+        return _revert_ResourceConfiguration_to_dict(o)
+    else:
+        logger.error("Unknown object type to convert to ResourceConfiguratrion tuple. Type: '{}'.".format(type(o)))
+        return None
+
+def update_configuration(resource_configuration_filename, obj):
+    """
+    Return updated configuration in ResourceConfiguration, when update is succeeded.
+    Return None on any errors.
+    """
+    data = to_resource_configuration_file_format(obj)
+    if data:
+        if write_configuration(resource_configuration_filename, data):
+            return get_configuration(filename=resource_configuration_filename)
+    else:
+        return None
+
+# TODO --- separate into two functions like below. 
+#          get_configurations() <--- returns list of ResourceConfiguration
+#          get_configuration(filename or json) <--- return a single ResourceConfiguration
 def get_configuration(**kwargs):
     """ 
-    Return ResourceConfiguration for a resource configuration file (w/ 'filename' option),
-    or list of available ResourceConfiguration.
-
-    OPTION:
-        'filename': To specify a specific resouce configuration filename.
+    Return list of ResourceConfiguration for all of resource configuration files.
+    Or
+    Return a ResoruceConfiguration for specified filename when filename is specified.
+    Or
+    Return None on any errors. 
     """
 
     if 'filename' in kwargs:
@@ -371,24 +434,54 @@ def _read_resources(o):
 
 def _read_configuration_file(file_path):
     with open(file_path) as fi:
-        try:
+        try: # catch all exceptions here, including one raised in subsquent functions.
             j = json.load(fi)
+            platform = j['repository']['platform']
+            url = j['repository']['url']
+            owner = j['repository']['owner']
+            name = j['repository']['name']
+            branch = j['repository']['branch']
+            resources = _read_resources(j['repository']['resources'])
+            pullrequest = _read_pullrequest(j['repository']['pullrequest'])
+            options = _read_options(j['repository']['options'])
         except ValueError as e:
             logger.error("Failed to load json. File: '{}', Reason: '{}'.".format(file_path, e))
             return None
+        except KeyError as e:
+            logger.error("Failed to read json. File: '{}', Reason: '{}'.".format(file_path, e))
+            return None
         else:
-            try: # catch all exceptions here, including one raised in subsquent functions.
-                platform = j['repository']['platform']
-                url = j['repository']['url']
-                owner = j['repository']['owner']
-                name = j['repository']['name']
-                branch = j['repository']['branch']
-                resources = _read_resources(j['repository']['resources'])
-                pullrequest = _read_pullrequest(j['repository']['pullrequest'])
-                options = _read_options(j['repository']['options'])
-            except KeyError as e:
-                logger.error("Failed to read json. File: '{}', Reason: '{}'.".format(file_path, e))
-                return None
-            else:
-                return ResourceConfiguration(os.path.basename(file_path), file_path, platform, url, name, owner, branch, resources, pullrequest, options)
+            return ResourceConfiguration(os.path.basename(file_path), file_path, platform, url, name, owner, branch, resources, pullrequest, options)
 
+def _create_ResourceConfiguration(resource_configuration_file_path, json_data):
+    try: # catch all exceptions here, including one raised in subsquent functions.
+        platform = json_data['repository']['platform']
+        url = json_data['repository']['url']
+        owner = json_data['repository']['owner']
+        name = json_data['repository']['name']
+        branch = json_data['repository']['branch']
+        resources = _read_resources(json_data['repository']['resources'])
+        pullrequest = _read_pullrequest(json_data['repository']['pullrequest'])
+        options = _read_options(json_data['repository']['options'])
+    except KeyError as e:
+        logger.error("Failed to read json. Reason: '{}', json_data: '{}'.".format(resource_configuration_file_path, e, json_data))
+        return None
+    else:
+        return ResourceConfiguration(os.path.basename(resource_configuration_file_path),
+                    resource_configuration_file_path, platform, url, name, owner, branch, resources, pullrequest, options)
+
+def write_configuration(resource_configuration_filename, data):
+    """
+    Return True on success.
+    Return None otherwise.
+    """
+    path = os.path.join(settings.CONFIG_RESOURCE_DIR, resource_configuration_filename)
+    if not os.path.isfile(path): 
+        return False
+
+    # TODO --- use git to keep changes
+    old = os.path.join(settings.CONFIG_RESOURCE_DIR, resource_configuration_filename + '.OLD.'+ datetime.now().strftime('%Y%m%d.%H%M%S'))
+    os.rename(path, old)
+    with open(path, 'w') as fo:
+        fo.write(json.dumps(data))
+    return True

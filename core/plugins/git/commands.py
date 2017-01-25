@@ -13,6 +13,16 @@ def get_status_porcelain(git_dir):
     else:
         return succeeded_util_call_results(output) 
 
+def get_branch_all(git_dir):
+    """ Return all branch names).
+    """
+    try:
+        output = git('-C', git_dir, 'branch', '--all')
+    except ErrorReturnCode as e:
+        return failed_util_call_results(e)
+    else:
+        return succeeded_util_call_results(output) 
+
 def get_current_branch_name(git_dir):
     """ Return current branch name (e.g. 'master').
     """
