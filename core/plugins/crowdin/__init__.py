@@ -1,2 +1,0 @@
-""" tpa crowdin repository.
-"""

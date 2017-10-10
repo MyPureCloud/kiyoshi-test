@@ -1,0 +1,40 @@
+{
+    "meta": {
+        "desc": "sandbag resource configuration",       // Brief description of this file.
+        "category": "resource_configuration",           // Resource configuration file ID. A resource configuration file has have this ID.
+        "version": "0"                                  // Resource configuration file format version number.
+    },
+
+    "platform": "bitbucket",                                        // Development platform ID. 
+
+    "owner": "MyOrg",                                               // Owner or organization name.
+    "name": "my-repository",                                        // Development repository name.
+    "url": "https://bitbucket.org/MyOrg/my_repository.git",         // URL to the repository.
+
+    "branch": "master",                                             // Branch name where translation files resides.
+ 
+    "pullrequest": {
+            "title": "Translation Updates",                         // Title string used for Pull Requests.
+            "reviewers": ["my_user_name"]                           // List of user name(s) for PR review.
+    },
+
+    "resources": [                                                  // List of translatable resource files.
+        {
+            "path": "test/src/flat.json",                           // Path to resource file with the repository.
+            "filetype": "json",                                     // File format type of the file.
+            "lang": "en-US",                                        // Language code of the file.
+
+            "translations": [                                       // List of translated files.
+                {
+                    "lang": "ja",                                   // Language code of the translated file.
+                    "path": "test/src/flat_ja.json"                 // Path  to the translated file in the repository.
+                },
+
+                ...     // another translated file(s). 
+
+            ]
+        },
+
+        ...         // another resource file(s)
+    ]
+}

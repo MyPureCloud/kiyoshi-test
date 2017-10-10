@@ -1,0 +1,15 @@
+{
+    "meta": {
+        "desc": "sample uploader configuration",        // Brief description of this file.
+        "category": "uploader_configuration",           // Uploader configuration file has to have this ID.
+        "version": "0"                                  // Uploader configuration file format version.
+    },
+
+                                                                            // Uploaders consumes following two files.
+
+    "resource_config_file": "config/projects/sample/resource.json",         // A resource configuration file holds translatable resource files
+                                                                            // information in development repository, such as Bitbucket.
+
+    "translation_config_file": "config/projects/sample/translation.json"    // A translation configuration file holds project in formation
+                                                                            // for translation platform, such as Transifex.
+}

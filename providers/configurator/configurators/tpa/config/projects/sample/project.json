@@ -1,0 +1,41 @@
+{
+    "meta": {
+        "desc": "sample project configuration",             // Brief description of this project.
+        "category": "project_configuration",                // A project file has to have this category ID.
+        "version": "0"                                      // Project configuration file format Version number.
+    },
+
+    "status": "active",                                     // Project status. Either 'active' or 'suspended'.
+    "id": "sample",                                         // Project ID.
+
+    "jobs": [                                               // A project consists of job(s), which can be scheduled by scheduler.
+        {
+            "status": "active",                             // Job status. Either 'active' or 'suspended'.
+            "id": "sample_resource_uploading",              // Job ID. Has to be unique within all project. So, naming convention
+                                                            // is <project id>_<job name>.
+
+            "schedule": {                                   // Scheduler consumes this data to schedule this job.
+                "month": "*",
+                "day": "*",
+                "day_of_week": "2,6",
+                "hour": "13",
+                "minute": "10"
+            },
+
+            "tasks": [                                      // A job consists of task(s). When multiple tasks are listed, they
+                                                            // are executed in the order (from top to bottom).
+                {
+                    "status": "active",                                     // Task status. Either 'active' or 'suspended'.
+                    "executor": "resource_uploader",                        // Task executor ID. The executor has to be exists in task executor.
+                    "config_path": "config/projects/sample/uploader.json"   // A repative configuration path, which is consumed by the task executor.
+                },
+                
+                ... // another task                    
+                    // Specify "accept_feeds": "true" when this task needs output from the previous task.
+            ]
+        },
+
+        ...     // another job
+
+    ]
+} 
