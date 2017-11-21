@@ -1,8 +1,10 @@
-import executors.resource_comparator_formatter.executor
-import executors.email_notificator.executor
-import executors.resource_comparator.executor
-import executors.resource_puller.executor
-import executors.resource_existence_checker.executor
+from .executors.resource_comparator_formatter import executor as resource_comparator_formatter
+from .executors.email_notificator import executor as email_notificator
+from .executors.resource_comparator import executor as resource_comparator
+from .executors.repository_puller import executor as repository_puller
+from .executors.resource_existence_checker import executor as resource_existence_checker
+from .executors.resource_uploader import executor as resource_uploader
+from .executors.translation_uploader import executor as translation_uploader
 
 identity = {
         'type': 'provider',
@@ -21,11 +23,13 @@ providers = {
     }
 }
 executors = {
-        'resource_comparator_formatter': executors.resource_comparator_formatter.executor,
-        'email_notificator': executors.email_notificator.executor,
-        'resource_comparator': executors.resource_comparator.executor,
-        'resource_puller': executors.resource_puller.executor,
-        'resource_existence_checker': executors.resource_existence_checker.executor
+        'resource_comparator_formatter': resource_comparator_formatter,
+        'email_notificator': email_notificator,
+        'resource_comparator': resource_comparator,
+        'resource_uploader': resource_uploader,
+        'repository_puller': repository_puller,
+        'resource_existence_checker': resource_existence_checker,
+        'translation_uploader': translation_uploader
         }
 
 kafka = {

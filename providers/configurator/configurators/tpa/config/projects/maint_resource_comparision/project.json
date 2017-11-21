@@ -1,0 +1,27 @@
+{
+    "meta": {
+        "desc": "maint_resource_comparison project configuration",
+        "category": "project_configuration",
+        "version": "0"
+    },
+    "status": "active",
+    "id": "maint_resource_comparison",
+    "jobs": [
+        {
+            "status": "suspended",
+            "id": "resource-comparison",
+            "schedule": {
+                "month": "*",
+                "day": "*",
+                "day_of_week": "*",
+                "hour": "15",
+                "minute": "0"
+            },
+            "tasks": [
+                {"status": "active", "executor": "resource_comparator", "config_path": "config/projects/PROJECT_ID_STRING/uploader.json"},
+                {"status": "active", "executor": "resource_comparator_formatter", "config_path": "config/projects/maint_resource_comparison/email.json"},
+                {"status": "active", "executor": "email_notificator", "config_path": "config/projects/maint_resource_comparison/email_template.json"}
+            ]
+        }
+    ]
+} 

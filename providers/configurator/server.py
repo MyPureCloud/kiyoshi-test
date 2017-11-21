@@ -1,20 +1,23 @@
+"""
+How to run configurator
+=======================
+$ cd translation-process-automation
+$ python3 -m providers.configurator.server
+"""
 import os
 import sys
 import signal
 import socket
-try:
-    from urllib import unquote
-except ImportError:
-    from urllib.parse import unquote 
+from urllib.parse import unquote 
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
 import tornado.options
 
-import settings
-from common.common import FatalError
-from common.common import TpaLogger
-from common.common import response_BAD_REQUEST
+from . import settings
+from ..common.common import FatalError
+from ..common.common import TpaLogger
+from ..common.common import response_BAD_REQUEST
 
 # All configurators share this provider, however, topic and key are specific to this module.
 kafka = {
@@ -76,6 +79,31 @@ class ProjectConfigurationFile(tornado.web.RequestHandler):
             self.set_status(res['status_code'])
             self.finish(res)
 
+class ProjectJobConfiguration(tornado.web.RequestHandler):
+    def initialize(self, configurators):
+        self.configurators = configurators
+
+    def get(self, configurator_name, project_id, job_id):
+        request_id = 'NIY'
+        name = unquote(configurator_name)
+        projid = unquote(project_id)
+        jobid = unquote(job_id)
+        with TpaLogger(**kafka) as o:
+            o.info(self.request.uri)
+        for x in self.configurators:
+            for k, v in x.items():
+                if k == name:
+                    res = v(request_id, 'get_project_job_configuration', project_id=projid, job_id=jobid)
+                    self.set_status(res['status_code'])
+                    self.finish(res)
+                    return
+        else:
+            msg = "Configurator not found in configurator list. '{}'".format(name)
+            kp = create_kafka_producer()
+            res = response_BAD_REQUEST(request_id, msg, kafka)
+            self.set_status(res['status_code'])
+            self.finish(res)
+
 class ConfigurationFile(tornado.web.RequestHandler):
     def initialize(self, configurators):
         self.configurators = configurators
@@ -95,6 +123,30 @@ class ConfigurationFile(tornado.web.RequestHandler):
                     return
         else:
             msg = "Configurator not found in configurator list. '{}'".format(name)
+            res = response_BAD_REQUEST(request_id, msg, kafka)
+            self.set_status(res['status_code'])
+            self.finish(res)
+
+class UploadableResourceAndTranslationFiles(tornado.web.RequestHandler):
+    def initialize(self, configurators):
+        self.configurators = configurators
+
+    def get(self, configurator_name, project_id):
+        request_id = 'NIY'
+        name = unquote(configurator_name)
+        projid = unquote(project_id)
+        with TpaLogger(**kafka) as o:
+            o.info(self.request.uri)
+        for x in self.configurators:
+            for k, v in x.items():
+                if k == name:
+                    res = v(request_id, 'get_uploadable_resource_and_translation_files', project_id=projid)
+                    self.set_status(res['status_code'])
+                    self.finish(res)
+                    return
+        else:
+            msg = "Configurator not found in configurator list. '{}'".format(name)
+            kp = create_kafka_producer()
             res = response_BAD_REQUEST(request_id, msg, kafka)
             self.set_status(res['status_code'])
             self.finish(res)
@@ -151,11 +203,27 @@ def main():
             #   Project id          e.g. sandbag
             (r'/api/v0/configuration/([^/]+)/project/([^/]+)', ProjectConfigurationFile, dict(configurators=configurators)),
 
+            # --- Project job configuraton context --- #
+            # Args:
+            #   configurator id     e.g. tpa
+            #   Project id          e.g. sandbag
+            #   Job id              e.g. resource_upload
+            (r'/api/v0/configuration/([^/]+)/project/([^/]+)/job/([^/]+)', ProjectJobConfiguration, dict(configurators=configurators)),
+
             # --- Supportive project configuration file context --- #
             # Args:
             #   configurator id     e.g. tpa
             #   Path            path of configuraton file.              
-            (r'/api/v0/configuration/([^/]+)/path=([^/]+)', ConfigurationFile, dict(configurators=configurators))
+            (r'/api/v0/configuration/([^/]+)/path=([^/]+)', ConfigurationFile, dict(configurators=configurators)),
+
+
+
+            # --- List of uploadable resource and translation files in project --- #
+            # Args:
+            #   configurator id     e.g. tpa
+            #   Project id          e.g. sandbag
+            (r'/api/v0/configuration/([^/]+)/project/([^/]+)/uploadablefiles', UploadableResourceAndTranslationFiles, dict(configurators=configurators)),
+
         ])
 
     port = settings.server['http']['port']

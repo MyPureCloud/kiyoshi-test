@@ -1,12 +1,15 @@
+"""
+How to run task executor 
+========================
+$ cd translation-process-automation
+$ python3 -m providers.task_executor.server
+"""
 import os
 import sys
 import json
 import signal
 import socket
-try:
-    from urllib import unquote
-except ImportError:
-    from urllib.parse import unquote
+from urllib.parse import unquote
 import json
 
 import tornado.httpserver
@@ -14,10 +17,10 @@ import tornado.ioloop
 import tornado.web
 import tornado.options
 
-import settings
-from common.common import FatalError
-from common.common import TpaLogger 
-from common.common import response_OK, response_BAD_REQUEST
+from . import settings
+from ..common.common import FatalError
+from ..common.common import TpaLogger 
+from ..common.common import response_OK, response_BAD_REQUEST
 
 # All task executors share this provider, however, topic and key are specific to this module.
 kafka = {
@@ -70,7 +73,7 @@ class ExecTask(tornado.web.RequestHandler):
         for x in self.executors:
             for k, v in x.items():
                 if k == eid:
-                    res = v.execute(request_id, config_path, kafka, **kwargs)
+                    res = v(request_id, config_path, **kwargs)
                     self.set_status(res['status_code'])
                     self.finish(res)
                     return
@@ -83,8 +86,11 @@ class ExecTask(tornado.web.RequestHandler):
 def _execute_multi_tasks(request_id, tasks, executors, force_execute):
     feeds = []
     summary = []
-    n = len(tasks) 
-    for i in range(0, n):
+    last_exec_results = None
+    num_tasks = len(tasks) 
+    for i in range(0, num_tasks):
+        with TpaLogger(**kafka) as o:
+            o.info("Executing task [{}]: {}".format(i, tasks[i]))
         request_id = None       # for exception case.
         executor_id = None
         try:
@@ -95,22 +101,23 @@ def _execute_multi_tasks(request_id, tasks, executors, force_execute):
             if 'accept_feeds' in tasks[i]:
                 if tasks[i]['accept_feeds'] == 'true':
                     accept_feeds = True
+                elif tasks[i]['accept_feeds'] == 'false':
+                    accept_feeds = False
                 else:
                     with TpaLogger(**kafka) as o:
                         o.error("REQ[{}] Unknown accept_feeds value '{}'. Defaults to False.".format(request_id, tasks[i]['accept_feeds']))
                     accept_feeds = False
             else:
                 accept_feeds = False
-
         except KeyError as e:
             with TpaLogger(**kafka) as o:
-                o.error("REQ[{}] Failed to access key in payload of multi tasks({}/{}) for task '{}'. {}".format(request_id, i, n, executor_id, str(e)))
-            d = {'total': n, 'seq': i, 'executor_id': executor_id, 'status': 'failure'}
+                o.error("REQ[{}] Failed to access key in payload of multi tasks({}/{}) for task '{}'. {}".format(request_id, i, num_tasks, executor_id, str(e)))
+            d = {'total': num_tasks, 'seq': i, 'executor_id': executor_id, 'status': 'failure'}
             summary.append(d)
             if force_execute:
                 continue
             else:
-                return summary 
+                return {'summary': summary, 'results': last_exec_results} 
 
         try:
             if accept_feeds:
@@ -118,7 +125,7 @@ def _execute_multi_tasks(request_id, tasks, executors, force_execute):
             else:
                 kwargs = {}
 
-            res =  settings.executors[executor_id].execute(request_id, config_path, kafka, **kwargs)
+            #res =  settings.executors[executor_id].execute(request_id, config_path, kafka, **kwargs)
 
             executed = False
             for x in executors:
@@ -130,39 +137,43 @@ def _execute_multi_tasks(request_id, tasks, executors, force_execute):
                 if executed:
                     break
             else:
-                msg = "Executor not found in executor list. '{}'".format(executor_id)
+                msg = "Executor not found in executor list for {} of {} task. '{}'".format(i, num_tasks, executor_id)
                 res = response_BAD_REQUEST(request_id, msg, kafka)
 
+            last_executed_results = res
+
             if res['status_code'] == 200 or res['status_code'] == 202:
-                d = {'total': n, 'seq': i, 'executor_id': executor_id, 'status': 'success'}
+                d = {'total': num_tasks, 'seq': i, 'executor_id': executor_id, 'status': 'success'}
                 summary.append(d)
                 d['output'] = res
                 feeds.append(d)
             else:
                 with TpaLogger(**kafka) as o:
-                    o.error("REQ[{}] Failed to execute multi tasks({}/{}) for task '{}'. {}".format(request_id, i, n, executor_id, res['message']))
-                d = {'total': n, 'seq': i, 'executor_id': executor_id, 'status': 'failure'}
+                    o.error("REQ[{}] Failed to execute multi tasks({}/{}) for task '{}'. {}".format(request_id, i, num_tasks, executor_id, res['message']))
+                d = {'total': num_tasks, 'seq': i, 'executor_id': executor_id, 'status': 'failure'}
                 summary.append(d)
                 if force_execute:
                     d['output'] = res
                     feeds.append(d)
                 else:
-                    return summary 
+                    return {'summary': summary, 'results': last_exec_results} 
         except KeyError as e:
             with TpaLogger(**kafka) as o:
-                o.error("REQ[{}] Failed to access key in response of multi tasks({}/{}) for task '{}'. {}".format(request_id, i, n, executor_id, str(e)))
-            d = {'total': n, 'seq': i, 'executor_id': executor_id, 'status': 'failure'}
+                o.error("REQ[{}] Failed to access key in response of multi tasks({}/{}) for task '{}'. {}".format(request_id, i, num_tasks, executor_id, str(e)))
+            d = {'total': num_tasks, 'seq': i, 'executor_id': executor_id, 'status': 'failure'}
             summary.append(d)
             if force_execute:
                 d['output'] =  message
                 feeds.append(d)
             else:
-                return summary
-    return summary
+                return {'summary': summary, 'results': last_exec_results} 
+    return {'summary': summary, 'results': last_exec_results} 
+
 
 class ExecMultiTasks(tornado.web.RequestHandler):
-    def initialize(self, executors):
+    def initialize(self, executors, force_execute):
         self.executors = executors
+        self.force_execute = force_execute
 
     def post(self):
         request_id = 'NIY'       # for exceptin case.
@@ -175,32 +186,17 @@ class ExecMultiTasks(tornado.web.RequestHandler):
             self.set_status(res['status_code'])
             self.finish(res)
             return
+        
+        num_tasks = len(data['tasks'])
+        with TpaLogger(**kafka) as o:
+            o.info("Executing multi tasks ({})...".format(num_tasks))
+            for i in range(0, num_tasks):
+                o.info("[{}]: {}".format(i + 1, data['tasks'][i]))
 
-        summary = _execute_multi_tasks(request_id, tasks, self.executors, force_execute=False)
-        results = json.dumps(summary)
-        res = response_OK(request_id, "Completed.", results, kafka)
-        self.set_status(res['status_code'])
-        self.finish(res)
-
-class ExecMultiTasksForceExecute(tornado.web.RequestHandler):
-    def initialize(self, executors):
-        self.executors = executors
-
-    def post(self):
-        request_id = 'NIY'       # for exceptin case.
-        try:
-            data = json.loads(self.request.body)
-            tasks = data['tasks']
-        except ValueError as e:
-            msg = "REQ[{}] Failed to process payload of multi tasks. {}".format(request_id, str(e))
-            res = response_BAD_REQUEST(request_id, msg, kafka)
-            self.set_status(res['status_code'])
-            self.finish(res)
-            return
-
-        summary = _execute_multi_tasks(request_id, tasks, force_execute=True)
-        results = json.dumps(summry)
-        res = response_OK(request_id, "Completed", results, kafka)
+        output = _execute_multi_tasks(request_id, tasks, self.executors, force_execute=self.force_execute)
+        summary = json.dumps(output['summary'])
+        results = json.dumps(output['results'])
+        res = response_OK(request_id, summary, results, kafka)
         self.set_status(res['status_code'])
         self.finish(res)
 
@@ -268,7 +264,7 @@ def main():
             #       },
             #       ...
             #   ]
-            (r'/api/v0/tasks/multitasks_executor/exec', ExecMultiTasks, dict(executors=executors)),
+            (r'/api/v0/tasks/multitasks_executor/exec', ExecMultiTasks, dict(executors=executors, force_execute=False)),
 
             # --- Execute tasks (force executing all tasks)--- #
             # Args:
@@ -283,7 +279,7 @@ def main():
             #       },
             #       ...
             #   ]
-            (r'/api/v0/tasks/multitasks_executor/exec/force_execute', ExecMultiTasksForceExecute, dict(executors=executors))
+            (r'/api/v0/tasks/multitasks_executor/exec/force_execute', ExecMultiTasks, dict(executors=executors, force_exec=True))
 
         ])
 

@@ -8,12 +8,12 @@ import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from common.common import FatalError
-from common.common import GET
-from common.common import TpaLogger 
-from common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR
+from ....common.common import FatalError
+from ....common.common import GET
+from ....common.common import TpaLogger 
+from ....common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR
 from ..helper import get_config_context
-import settings
+from . import settings
 
 def _send_email(smtp_server, sender, recipients, subject, message, list_attachment_path):
     mp = MIMEMultipart()
@@ -143,9 +143,6 @@ def execute(request_id, config_path, kafka, **kwargs):
         _send(smtp_server, sender, recipients, subject, body, attachments)
     except FatalError as e:
         return response_INTERNAL_SERVER_ERROR(request_id, str(e), kafka)
-
-    # results --- NIY
-    results = "NIY"
 
     return response_OK(request_id, "Executed", body, kafka)
 

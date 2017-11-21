@@ -1,15 +1,12 @@
 import json
-try:
-    from urllib import quote
-except ImportError:
-    from urllib.parse import quote
+from urllib.parse import quote
 
-from common.common import FatalError
-from common.common import GET
-from common.common import TpaLogger 
-from common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR
+from ....common.common import FatalError
+from ....common.common import GET
+from ....common.common import TpaLogger 
+from ....common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR
 from ..helper import get_config_context, repository_file_exists
-import settings
+from . import settings
 
 def execute(request_id, config_path, kafka, **kwargs):
     """ This executor consumes no kwargs. """

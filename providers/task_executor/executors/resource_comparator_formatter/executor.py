@@ -3,12 +3,12 @@ import json
 import hashlib
 import difflib
 
-from common.common import FatalError
-from common.common import GET
-from common.common import TpaLogger
-from common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR, response_ACCEPTED
-from ..helper import get_config_context, get_context_from_translation_platform, get_context_from_resource_platform
-import settings
+from ....common.common import FatalError
+from ....common.common import GET
+from ....common.common import TpaLogger
+from ....common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR, response_ACCEPTED
+from ..helper import get_config_context, get_context_from_translation_platform, get_context_from_resource_repository
+from . import settings
 
 def _text(feeds, show_diff):
     text = ''
@@ -43,20 +43,20 @@ def _text(feeds, show_diff):
             if x['status'] == 'failure':
                 text += "\t{}\n".format(x['name'])
 
-    text += "{}\n".format("Following repository(s) has difference(s) in resources(s):")
+    text += "{}\n".format("Repositories with different resources:")
     count = 0
     for x in summary:
         if x['status'] == 'success' and x['diffs'] >= 1:
-            text += "\t{} ({}/{})\n".format(x['name'], x['total'], x['diffs'])
+            text += "\t{} ({}/{})\n".format(x['name'], x['diffs'], x['total'])
             count += 1
     if count == 0:
             text += "\t{}\n".format("(None)")
 
-    text += "{}\n".format("Following repository(s) has identical resource(s):")
+    text += "{}\n".format("Repositories with identical resources:")
     count = 0
     for x in summary:
         if x['status'] == 'success' and x['diffs'] == 0:
-            text += "\t{} ({}/{})\n".format(x['name'], x['total'], x['diffs'])
+            text += "\t{} ({}/{})\n".format(x['name'], x['total'], x['total'])
             count += 1
     if count == 0:
             text += "\t{}\n".format("(None)")

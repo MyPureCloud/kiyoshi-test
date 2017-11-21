@@ -3,6 +3,7 @@ import sys
 import json
 import hashlib
 import codecs
+from collections import OrderedDict
 import requests
 from requests.exceptions import RequestException, HTTPError
 from datetime import datetime
@@ -27,25 +28,20 @@ def gen_sha1_from_strings(list_of_strings):
 
 def gen_sha1_from_file_context(file_path):
     # TODO --- modify to handle huge file w/o consuming much memory
-    with open(file_path, 'rb') as fi:
-        return hashlib.sha1(''.join(fi.readlines())).hexdigest()
+    #with open(file_path, 'rb') as fi:
+    with open(file_path, 'r') as fi:
+        return hashlib.sha1(''.join(fi.readlines()).encode('utf8')).hexdigest()
 
 def save_text(path, text):
     try:
-        if os.path.isfile(path):
-            os.remove(path)
-        if sys.version_info[0:1] == (2,):
-            with codecs.open(path, 'w', encoding='utf-8') as fo:
-                fo.write(text)
-        else:
-            with open(path, 'w') as fo:
-                fo.write(text)
+        with open(path, 'w') as fo:
+            fo.write(text)
     except (IOError, OSError) as e:
         message = "Failed to save text. {}".format(str(e))
         logger.error(message)
         raise FatalError(message)
 
-def GET(url, request_id, auth=None):
+def GET(url, request_id, auth=None, data=None):
     try:
         if auth:
             username= auth['username']
@@ -55,17 +51,25 @@ def GET(url, request_id, auth=None):
 
     try:
         if auth:
-            r = requests.get(url, auth=(username, userpasswd))
+            if data:
+                r = requests.get(url, auth=(username, userpasswd), data=data)
+            else:
+                r = requests.get(url, auth=(username, userpasswd))
         else:
-            r = requests.get(url)
+            if data:
+                headers = {'Content-type': 'application/json'}
+                r = requests.get(url, headers=headers, data=data)
+            else:
+                r = requests.get(url)
         r.raise_for_status()
-        return json.loads(r.text)
+        #return json.loads(r.text)
+        return json.loads(r.text, object_pairs_hook=OrderedDict)
     except RequestException as e:
         raise FatalError("Failed on GET. '{}', {}".format(url, str(e)))
     except HTTPError as e:
         raise FatalError("Failed on GET. '{}', {}, {}".format(url, str(e), r.content))
     except ValueError as e:
-        raise FatalError("Failed to load get response. '{}', {}".format(url, str(e)))
+        raise FatalError("Failed to load GET response. '{}', {}".format(url, str(e)))
 
 def POST(url, request_id, headers=None, data=None):
     try:
@@ -80,7 +84,34 @@ def POST(url, request_id, headers=None, data=None):
     except (HTTPError) as e:
         raise FatalError("Failed on POST. '{}', {}, {}".format(url, str(e), r.content))
     except ValueError as e:
-        raise FatalError("Failed to load post response. '{}', {}".format(url, str(e)))
+        raise FatalError("Failed to load POST response. '{}', {}".format(url, str(e)))
+
+def PUT(url, request_id, auth, data):
+    logger.info("PUT url: '{}', creds: '{}, data: '{}'".format(url, auth, data))
+    try:
+        if auth:
+            username= auth['username']
+            userpasswd = auth['userpasswd']
+    except KeyError as e:
+        raise FatalError("Failed on PUT. Failed to access key in auth. '{}'".format(str(e)))
+
+    headers = {'Content-type': 'application/json'}
+    body = data.encode('utf-8')
+    try:
+        if auth:
+            r = requests.put(url, auth=(username, userpasswd), headers=headers, data=body)
+        else:
+            r = requests.put(url, headers=headers, data=body)
+        logger.info("PUT response: '{}', text: '{}'".format(r, r.content))
+        r.raise_for_status()
+        return json.loads(r.text)
+    except (RequestException) as e:
+        raise FatalError("Failed on PUT. '{}', {}, {}".format(url, str(e), r.content))
+    except (HTTPError) as e:
+        raise FatalError("Failed on PUT. '{}', {}, {}".format(url, str(e), r.content))
+    except ValueError as e:
+        raise FatalError("Failed to load PUT response. '{}', {}".format(url, str(e)))
+
 
 """
 All providers return response via the following response functions.

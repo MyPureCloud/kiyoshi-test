@@ -1,0 +1,14 @@
+{
+    "meta": {
+        "desc": "maint_resource_comparison template configuration",
+        "category": "email_template_configuration",
+        "version": "0"
+    },
+    "smtp_server": "SMTP SERVER ADDRESS",
+    "sender": "SENDER EMAIL ADDRESS",
+    "recipients": [
+        {"useremail": "RECIPIENT EMAIL ADDRESS"}
+    ],
+    "subject": "[TPA] Resource Comparsion Results"
+} 
+

@@ -6,9 +6,9 @@ TPA Configurator
 import os
 import json
 
-from common.common import FatalError
-from common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR
-import settings
+from ....common.common import FatalError
+from ....common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR
+from . import settings
 
 def _get_configuration_by_path(request_id, kafka, **kwargs):
     try:
@@ -28,6 +28,27 @@ def _get_configuration_by_path(request_id, kafka, **kwargs):
     except ValueError as e:
         msg = "REQ[{}] Failed to process config file context. '{}' {}".format(request_id, path, str(e))
         return response_INTERNAL_SERVER_ERROR(request_id, msg, kafka)
+
+def _get_project_job_configuration(request_id, kafka, **kwargs):
+    try:
+        project_id = kwargs['project_id']
+        job_id = kwargs['job_id']
+    except KeyError as e:
+        msg = "REQ[{}] Failed to access key. {}".format(request_id, str(e))
+        return response_INTERNAL_SERVER_ERROR(request_id, msg, kafka)
+
+    res = _get_project_configuration(request_id, kafka, **kwargs)
+    if res['status_code'] == 200:
+        proj = res['results']
+        for x in proj['jobs']:
+            if job_id == x['id']:
+                msg = "Job configuration."
+                return response_OK(request_id, msg, x, kafka)
+        else:
+            msg = "Job '{}' not found in project '{}'.".format(job_id, project_id)
+            return response_BAD_REQUEST(request_id, msg, kafka)
+    else:
+        return res
 
 def _get_project_configuration(request_id, kafka, **kwargs):
     try:
@@ -89,10 +110,16 @@ def _list_project_ids(request_id, kafka):
         msg = "REQ[{}] Failed to process index file. {}".format(request_id, str(e))
         return response_INTERNAL_SERVER_ERROR(request_id, msg, kafka)
 
+def _get_uploadable_resource_and_translation_files(request_id, kafka, **kwargs):
+    # NIY
+    pass
+
 commands = {
         'get_configuration_by_path': _get_configuration_by_path,
         'get_project_configuration': _get_project_configuration,
-        'list_project_ids': _list_project_ids
+        'get_project_job_configuration': _get_project_job_configuration,
+        'list_project_ids': _list_project_ids,
+        'get_uploadable_resource_and_translation_files': _get_uploadable_resource_and_translation_files
         }
 
 def get_configurator(request_id, **kwargs):

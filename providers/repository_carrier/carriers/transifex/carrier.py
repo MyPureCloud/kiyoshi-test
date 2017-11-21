@@ -2,13 +2,35 @@ import os
 import json
 import hashlib
 
-from common.common import FatalError
-from common.common import GET
-from common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR, response_NOT_FOUND
-from common.common import save_text, gen_sha1_from_file_context
-import settings
+from ....common.common import FatalError
+from ....common.common import TpaLogger
+from ....common.common import GET, PUT
+from ....common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR, response_NOT_FOUND
+from ....common.common import save_text, gen_sha1_from_file_context
+from . import settings
 
 TRANSIFEX_API = 'https://www.transifex.com/api/2'
+
+def _get_resource_stats(request_id, creds, local_cache_root_dir, kafka, **kwargs):
+    try:
+        pslug = kwargs['pslug']
+        rslug = kwargs['rslug']
+        url = '{}/project/{}/resource/{}/stats/'.format(TRANSIFEX_API, pslug, rslug)
+        r = GET(url, request_id, auth=creds)
+        return response_OK(request_id, "Resource status.", r, kafka)
+    except FatalError as e:
+        return response_INTERNAL_SERVER_ERROR(request_id, "Failed to get resource status. {}".format(str(e)), kafak)
+
+def _get_translation_stats(request_id, creds, local_cache_root_dir, kafka, **kwargs):
+    try:
+        pslug = kwargs['pslug']
+        rslug = kwargs['rslug']
+        lang = kwargs['lang']
+        url = '{}/project/{}/resource/{}/stats/{}/'.format(TRANSIFEX_API, pslug, rslug, lang)
+        r = GET(url, request_id, auth=creds)
+        return response_OK(request_id, "Translation status.", r, kafka)
+    except FatalError as e:
+        return response_INTERNAL_SERVER_ERROR(request_id, "Failed to get translation status. {}".format(str(e)), kafak)
 
 def _get_translation(request_id, creds, pslug, rslug, lang):
     try:
@@ -48,8 +70,35 @@ def _download_file_context(request_id, creds, local_cache_root_dir, kafka, **kwa
         msg = "Failed to download file context. {}".format(str(e))
         return response_INTERNAL_SERVER_ERROR(request_id, msg, kafka)
 
+def _upload_resource_file_context(request_id, creds, local_cache_root_dir, kafka, **kwargs):
+    try:
+        pslug = kwargs['pslug']
+        rslug = kwargs['rslug']
+        context = json.dumps(kwargs['context'])
+    except KeyError as e:
+        msg = "Failed to access key in put resource file context kwargs. {}".format(str(e))
+        return response_INTERNAL_SERVER_ERROR(request_id, msg, kafka)
+    except ValueError as e:
+        msg = "Failed to load context as json. {}".format(str(e))
+        return response_INTERNAL_SERVER_ERROR(request_id, msg, kafka)
+
+    try:
+        url = '{}/project/{}/resource/{}/content/'.format(TRANSIFEX_API, pslug, rslug)
+        data=json.dumps({"content": context})
+        headers = {'Content-type': 'application/json'}
+        r = PUT(url, request_id, creds, data)
+        return response_OK(request_id, "Resource file uploaded.", {'platform': 'transifex', 'pslug': pslug, 'rslug': rslug, 'context': context, 'response': r}, kafka)
+    except FatalError as e:
+        msg = "Failed to put resource file context. '{}'." .format(str(e))
+        # FIXME --- this could be 400 from Transifex but cannot know abuot it here b/c 
+        #           PUT catches the exception and re-raise it as FatalError.
+        return response_INTERNAL_SERVER_ERROR(request_id, msg, kafka)
+
 commands = {
-        'get_file_context': _download_file_context
+        'get_file_context': _download_file_context,
+        'put_resource_file_context': _upload_resource_file_context,
+        'get_resource_stats': _get_resource_stats,
+        'get_translation_stats': _get_translation_stats
         }
 
 def _init_cache_dir(request_id):

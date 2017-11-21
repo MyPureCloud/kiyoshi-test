@@ -1,17 +1,16 @@
 import json
 
-
-from common.common import FatalError
-from common.common import POST
-from common.common import TpaLogger 
-from common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR
-import task_executor.settings
-import settings
+from ....common.common import FatalError
+from ....common.common import POST
+from ....common.common import TpaLogger 
+from ....common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR
+from ... import settings as task_executer_settings
+from . import settings
 
 def execute(request_id, config_path, kafka, **kwargs):
     """ This executor consumes no kwargs. """
     try:
-        url = "{}/repository/pull".format(task_executor.settings.providers['repository_carrier']['api'])
+        url = "{}/repository/pull".format(task_executor_settings.providers['repository_carrier']['api'])
         headers = {'Content-Type': 'application/json'}
         payload = json.dumps({'request_id': request_id, 'config_path': config_path})
         r = POST(url, request_id, headers=headers, data=payload)

@@ -1,4 +1,4 @@
-import configurators.tpa.configurator
+from .configurators.tpa import configurator as configurator
 
 identity = {
         'type': 'provider',
@@ -12,7 +12,7 @@ server = {
 }
 
 configurators = {
-    'tpa': configurators.tpa.configurator
+    'tpa': configurator
 }
 
 kafka = {

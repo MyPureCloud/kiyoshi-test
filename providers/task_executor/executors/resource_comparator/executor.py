@@ -3,12 +3,12 @@ import json
 import hashlib
 import difflib
 
-from common.common import FatalError
-from common.common import GET
-from common.common import TpaLogger 
-from common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR
-from ..helper import get_config_context, get_context_from_translation_platform, get_context_from_resource_platform
-import settings
+from ....common.common import FatalError
+from ....common.common import GET
+from ....common.common import TpaLogger 
+from ....common.common import response_OK, response_BAD_REQUEST, response_INTERNAL_SERVER_ERROR
+from ..helper import get_config_context, get_context_from_translation_platform, get_context_from_resource_repository
+from . import settings
 
 def _summary(results):
     ''' Text output such as... 

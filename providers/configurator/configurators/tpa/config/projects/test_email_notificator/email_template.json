@@ -1,0 +1,14 @@
+{
+    "meta": {
+        "desc": "test_email_notificator template configuration",
+        "category": "email_template_configuration",
+        "version": "0"
+    },
+    "smtp_server": "YOUR_SMTP_SERVER_ADDRESS",
+    "sender": "SENDER EMAIL ADDRESS",
+    "recipients": [
+        {"useremail": "RECIPIENT EMAIL ADDRESS"}
+    ],
+    "subject": "[TPA ***TEST***] Resource Comparsion Results"
+} 
+

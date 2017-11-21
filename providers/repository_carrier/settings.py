@@ -1,5 +1,5 @@
-import carriers.bitbucket.carrier
-import carriers.transifex.carrier
+from .carriers.bitbucket import carrier as bitbucket
+from .carriers.transifex import carrier as transifex
 
 identity = {
     'type': 'provider',
@@ -19,8 +19,8 @@ providers = {
 }
 
 repository_carriers = {
-    'bitbucket': carriers.bitbucket.carrier,
-    'transifex': carriers.transifex.carrier
+    'bitbucket': bitbucket,
+    'transifex': transifex
 }
 
 kafka = {

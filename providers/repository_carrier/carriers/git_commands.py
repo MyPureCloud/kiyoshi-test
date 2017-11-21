@@ -1,6 +1,6 @@
 from sh import git, ErrorReturnCode
 
-from common.common import FatalError
+from ...common.common import FatalError
 
 def clone(repository_url, branch_name, destdir):
     try:

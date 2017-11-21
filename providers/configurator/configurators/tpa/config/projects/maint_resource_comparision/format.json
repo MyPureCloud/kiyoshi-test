@@ -1,0 +1,9 @@
+{
+    "meta": {
+        "desc": "maint_resource_comparison format configuration",
+        "category": "formatter_configuration",
+        "version": "0"
+    },
+    "format": "text"
+} 
+
