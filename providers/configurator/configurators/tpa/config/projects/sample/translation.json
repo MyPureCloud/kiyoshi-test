@@ -8,15 +8,15 @@
     "platform": "transifex",                                // Translation platform ID.
 
     "project": {
-        "name": "Sandbag",                                  // Project name.
-        "slug": "inin-sample-en-us",                        // Project slug.
+        "name": "YOUR_PROJECT_NAME",                        // Project name.
+        "slug": "YOUR_PROJECT_SLUG",                        // Project slug.
         "source_language": "en-US",                         // Language ID of resource file.
         "languages": "ja, pt-BR",                           // Language ID(s) for translated languages.
                                                 // List of resource(s) in this project.
         "resources": [                                      
             {
                 "name": "Test 1",                                                   // Name of resource in the project.
-                "slug": "inin-29a9709aa5289f9ec172e26c52fd95abdcedf1bb",            // Resource slug.
+                "slug": "YOUR_RESOURCE_SLUG",                                       // Resource slug.
                 "origin": "MyOrg/my-repository/test/src/flat.json"                  // Resource file path in correspondent development repository.
             },
 

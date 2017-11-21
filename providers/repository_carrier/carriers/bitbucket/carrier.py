@@ -42,8 +42,6 @@ def _update_file_context(request_id, creds, local_repo_root_dir, kafka, **kwargs
     """ Update specified file in local repository with given context.
         NOTE: creds is not used.
     """
-    with TpaLogger(**kafka) as o:
-        o.info("******************** _update_file_conttext start *************************")
     try:
         repo_name = kwargs['repo_name']
         file_path = kwargs['file_path']
@@ -57,17 +55,11 @@ def _update_file_context(request_id, creds, local_repo_root_dir, kafka, **kwargs
                     fi.write(j)
                 sha1 = gen_sha1_from_file_context(local_file_path)
                 results = {'path': file_path, 'sha1': sha1, 'context': j}
-                with TpaLogger(**kafka) as o:
-                    o.info("******************** _update_file_conttext end 1 *************************")
                 return response_OK(request_id, "Completed.", results, kafka)
             else:
-                with TpaLogger(**kafka) as o:
-                    o.info("******************** _update_file_conttext end 2 *************************")
                 msg = "File '{}' not exist." .format(file_path)
                 return response_BAD_REQUEST(request_id, msg, kafka)
         else:
-            with TpaLogger(**kafka) as o:
-                o.info("******************** _update_file_conttext end 3 *************************")
             msg = "Repository '{}' not exist." .format(repo_name)
             return response_BAD_REQUEST(request_id, msg, kafka)
     except KeyError as e:

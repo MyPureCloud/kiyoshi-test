@@ -5,6 +5,6 @@
         "category_id": "projects_index"
     },
     "projects": [
-        {"id": "UNIQUE_PROJECT_ID_STRING", "config_path": "config/projects/UNIQUE_PROJECT_ID_STRING/project.json", "desc": "SHORT DESCRIPTION OF THE PROJECT."}
+        {"id": "PROJECT_ID", "config_path": "config/projects/PROJECT_ID/project.json", "desc": "SHORT DESCRIPTION OF THE PROJECT."}
     ]
 }

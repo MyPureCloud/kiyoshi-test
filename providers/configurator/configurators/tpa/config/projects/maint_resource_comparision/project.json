@@ -18,7 +18,7 @@
                 "minute": "0"
             },
             "tasks": [
-                {"status": "active", "executor": "resource_comparator", "config_path": "config/projects/PROJECT_ID_STRING/uploader.json"},
+                {"status": "active", "executor": "resource_comparator", "config_path": "config/projects/PROJECT_ID/uploader.json"},
                 {"status": "active", "executor": "resource_comparator_formatter", "config_path": "config/projects/maint_resource_comparison/email.json"},
                 {"status": "active", "executor": "email_notificator", "config_path": "config/projects/maint_resource_comparison/email_template.json"}
             ]

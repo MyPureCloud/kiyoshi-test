@@ -21,20 +21,6 @@ def _send_email(smtp_server, sender, recipients, subject, message, list_attachme
     mp['From'] = sender
     mp['To'] = recipients
     mp.attach(MIMEText(message, 'plain', 'utf-8'))
-# TODO --- cannot use file paths since executor does not 
-#           know where the file resides.
-#           prob need to pass context of files.
-#        for f in lst_attachment_path:
-#            if not os.path.isfile(f):
-#                continue
-#            if sys.version_info[0:1] == (2,):
-#                fi = codecs.open(f, 'r', encoding='utf-8')
-#            else:
-#                fi = open(f, 'r')
-#            msg = MIMEText(fi.read(), 'plain', 'utf-8')
-#            msg .add_header('Content-Disposition', 'attachment', filename=f)
-#            mp.attach(msg)
-#            fi.close()
     
     # TODO --- handle socket.timeout exception
     try:
